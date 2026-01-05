@@ -16,7 +16,7 @@ module.exports = {
     },
     plugins: [
         new HtmlWebpackPlugin({
-            title: 'Webpack !'
+            title: 'casse brique'
         })
     ],
     module: {
