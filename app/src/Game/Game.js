@@ -2,6 +2,7 @@
 import '../assets/css/style.css';
 //import des assets de sprites
 import ballImgSrc from '../assets/img/ball.png';
+import CustomMath from "./CustomMath";
 
 class Game
 {
@@ -13,12 +14,13 @@ class Game
     //temporaire: position de base de la balle
     ballX = 400;
     ballY= 300;
+    ballAngle = 90;
 
     ballSpeed = 10;
 
     ballVelocity = {
-        x: this.ballSpeed * Math.cos(Math.PI/6), // Trajectoire avec 30 degres dangle
-        y: this.ballSpeed * -1 * Math.sin(Math.PI/6), //Trajectoire avec 30 degres d'angle
+        x: this.ballSpeed * Math.cos(CustomMath.degToRad(this.ballAngle)), // Trajectoire avec 30 degres dangle
+        y: this.ballSpeed * -1 * Math.sin(CustomMath.degToRad(this.ballAngle)), //Trajectoire avec 30 degres d'angle
     };
 
     start() {
