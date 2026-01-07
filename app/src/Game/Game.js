@@ -7,14 +7,27 @@ class Game
 {
     // Contexte de dessin du canvas
     ctx;
+    //Images
+    ballImg = new Image();
 
     //temporaire: position de base de la balle
     ballX = 400;
     ballY= 300;
 
+    ballSpeed = 10;
+
+    ballVelocity = {
+        x: this.ballSpeed * Math.cos(Math.PI/6), // Trajectoire avec 30 degres dangle
+        y: this.ballSpeed * -1 * Math.sin(Math.PI/6), //Trajectoire avec 30 degres d'angle
+    };
+
     start() {
         console.log('Jeu démarré ...');
+        //initialisation de l'interface html
         this.initHtmlUI();
+        //initialisation des objet du jeu
+        this.initGameObject()
+        //lancement de la boucle
         requestAnimationFrame(this.loop.bind(this));
     }
 
@@ -33,28 +46,46 @@ class Game
         this.ctx = elCanvas.getContext('2d');
     }
 
+    // Mise en place des object du jeu sur la scene
+    initGameObject(){
+        // 1- on crée une balise HTML <img> qui ne sera jamais ajoutée au DOM
+         this.ballImg = new Image();
+
+
+        // 2- On récupére le nom de l'image généré par webpack en tant que src de cette image
+        this.ballImg.src = ballImgSrc;
+
+
+        // 3- On demande au contexte de dessin de dessiner cette image dans le canvas
+        this.ctx.drawImage( this.ballImg, this.ballX, this.ballY );
+
+    }
+
     //boucle d'animation
     loop()
     {
 
-        // 1- on crée une balise HTML <img> qui ne sera jamais ajoutée au DOM
-        const ballImg = new Image();
-
-
-        // 2- On récupére le nom de l'image généré par webpack en tant que src de cette image
-        ballImg.src = ballImgSrc;
-
-
-        // 3- On demande au contexte de dessin de dessiner cette image dans le canvas
-        ballImg.addEventListener( 'load', () => {
-            this.ctx.drawImage( ballImg, this.ballX, this.ballY );
-        });
-
+        this.ctx.reset()
 
         // Mise a jour de la position de la balle
-        this.ballX ++
-        this.ballY --
+        this.ballX += this.ballVelocity.x;
+        this.ballY += this.ballVelocity.y;
 
+
+        //TODO en mieux: detection des collisions
+        //Collision avec le cote droit ou gauche de la scene | Invertion du x de la velocité
+
+        if(this.ballX + 20 >= 800 || this.ballX <= 0) {
+            this.ballVelocity.x = this.ballVelocity.x * -1;
+        }
+
+        //collition avec le cote haut ou bas d ela scene | invertion du y de la velocité
+        if(this.ballY >= 580 || this.ballY <= 0) {
+            this.ballVelocity.y = this.ballVelocity.y * -1;
+        }
+
+
+        this.ctx.drawImage( this.ballImg, this.ballX, this.ballY );
         //appelle de la frame suivantes
         requestAnimationFrame(this.loop.bind(this));
     }
