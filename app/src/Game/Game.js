@@ -14,7 +14,7 @@ class Game
     //temporaire: position de base de la balle
     ballX = 400;
     ballY= 300;
-    ballAngle = 90;
+    ballAngle = 30;
 
     ballSpeed = 10;
 

@@ -1,0 +1,4 @@
+default export class Brick
+{
+
+}
