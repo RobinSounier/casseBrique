@@ -1,12 +1,69 @@
+@import url('https://fonts.googleapis.com/css2?family=Syncopate:wght@700&display=swap');
+
 body {
-    background-color: #ffffff;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    /* Fond noir violacé très sombre */
+    background-color: #0d0211;
+    color: #ff007f;
+    font-family: 'Syncopate', sans-serif;
+    overflow: hidden;
 }
 
 h1 {
-    color: #000000;
-    text-align: center;
+    font-size: 3.5rem;
+    text-transform: uppercase;
+    color: #fff;
+    /* Double lueur : Rose et Cyan pour le contraste */
+    text-shadow:
+            0 0 10px #ff007f,
+            0 0 20px #ff007f,
+            0 0 40px #ff007f;
+    margin-bottom: 40px;
+    letter-spacing: 15px;
 }
 
+/* LE CANVAS : L'écran rétro-futuriste */
 canvas {
-    background-color: #2e2e83;
+    background-color: #1a011a; /* Fond interne très sombre avec une pointe de rose */
+    border: 4px solid #ff007f;
+    border-radius: 10px;
+
+    /* Lueur extérieure rose */
+    box-shadow:
+            0 0 20px rgba(255, 0, 127, 0.4),
+            0 0 50px rgba(255, 0, 127, 0.2),
+            inset 0 0 20px rgba(255, 0, 127, 0.2);
+
+    /* Optionnel : adoucit les pixels pour un look plus "écran" */
+    filter: contrast(1.1) brightness(1.1);
+}
+
+/* Animation de scanlines (lignes de vieux téléviseurs) */
+body::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: linear-gradient(
+            rgba(18, 16, 16, 0) 50%,
+            rgba(0, 0, 0, 0.1) 50%
+    );
+    background-size: 100% 4px;
+    z-index: 10;
+    pointer-events: none;
+}
+
+/* Petit halo rose qui suit légèrement la souris ou reste en fond */
+body::before {
+    content: "";
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(255, 0, 127, 0.1) 0%, transparent 70%);
+    z-index: -1;
 }

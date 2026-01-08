@@ -2,7 +2,11 @@
 import '../assets/css/style.css';
 //import des assets de sprites
 import ballImgSrc from '../assets/img/ball.png';
+import paddleImgSrc from '../assets/img/paddle.png';
+import brickImgSrc from '../assets/img/brick.png';
+
 import CustomMath from "./CustomMath";
+import Ball from "./Ball";
 
 class Game
 {
@@ -10,6 +14,21 @@ class Game
     ctx;
     //Images
     ballImg = new Image();
+
+    images = {
+        ball: null,
+        paddle: null,
+        brick: null,
+    }
+
+
+    // State (un object qui decrit l'etat actuel du jeu, les balles, les brique encore presente etc ..)
+    state = {
+        // Balles (plusieurs car possible multiball)
+        balls: [],
+        paddles: null,
+
+    };
 
     //temporaire: position de base de la balle
     ballX = 400;
@@ -27,6 +46,8 @@ class Game
         console.log('Jeu démarré ...');
         //initialisation de l'interface html
         this.initHtmlUI();
+        //Initilisation des images
+        this.initImages()
         //initialisation des objet du jeu
         this.initGameObject()
         //lancement de la boucle
@@ -48,18 +69,36 @@ class Game
         this.ctx = elCanvas.getContext('2d');
     }
 
+    //création des images
+    initImages(){
+        //ball
+        const imgBall = new Image();
+        imgBall.src = ballImgSrc;
+        this.images.ball = imgBall
+
+        //paddle
+        const imgPaddle = new Image();
+        imgPaddle.src = paddleImgSrc;
+        this.images.paddle = imgPaddle
+
+        //brick
+        const imgBrick = new Image();
+        imgBrick.src = brickImgSrc;
+        this.images.brick = imgBrick
+    }
+
     // Mise en place des object du jeu sur la scene
     initGameObject(){
-        // 1- on crée une balise HTML <img> qui ne sera jamais ajoutée au DOM
-         this.ballImg = new Image();
+        // Balle
+        const ball = new Ball(this.images.ball, 20, 20, 45, 2);
+        ball.setPosition(400,300)
+        this.state.balls.push(ball);
+        // Dessin des balles
+        this.state.balls.forEach(theBall => {
+            theBall.draw()
+        })
 
-
-        // 2- On récupére le nom de l'image généré par webpack en tant que src de cette image
-        this.ballImg.src = ballImgSrc;
-
-
-        // 3- On demande au contexte de dessin de dessiner cette image dans le canvas
-        this.ctx.drawImage( this.ballImg, this.ballX, this.ballY );
+        ball.draw();
 
     }
 
@@ -95,7 +134,7 @@ class Game
     // Fonction de test inutile dans le jeu
     drawTest() {
         this.ctx.beginPath();
-        this.ctx.fillStyle = '#fc0';
+        this.ctx.fillStyle = '#ff007f';
         this.ctx.arc(400, 300, 100, 0, Math.PI * 2 - Math.PI / 3);
         this.ctx.closePath();
         this.ctx.fill();

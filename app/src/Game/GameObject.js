@@ -1,5 +1,7 @@
 import Bounds from "./dataType/Bounds";
 import theGame from "./Game";
+import Vector from "./dataType/Vector";
+import Size from "./dataType/Size";
 
 
 export default class GameObject
@@ -11,8 +13,7 @@ export default class GameObject
 
     constructor(image, width, height) {
         this.image = image;
-        this.width = width;
-        this.height = height;
+        this.size = new Size(width, height);
     }
 
     getBounds() {
@@ -32,6 +33,11 @@ export default class GameObject
             this.size.width,
             this.size.height
         );
+    }
+
+    setPosition(x, y) {
+        this.position = new Vector(x,y);
+
     }
 
 }
