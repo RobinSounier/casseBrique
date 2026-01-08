@@ -4,42 +4,30 @@ import '../assets/css/style.css';
 import ballImgSrc from '../assets/img/ball.png';
 import paddleImgSrc from '../assets/img/paddle.png';
 import brickImgSrc from '../assets/img/brick.png';
-
-import CustomMath from "./CustomMath";
+import edgeImgSrc from '../assets/img/edge.webp';
 import Ball from "./Ball";
+import GameObject from "./GameObject";
+
 
 class Game
 {
     // Contexte de dessin du canvas
     ctx;
-    //Images
-    ballImg = new Image();
-
     images = {
         ball: null,
         paddle: null,
         brick: null,
+        edge: null
     }
-
-
     // State (un object qui decrit l'etat actuel du jeu, les balles, les brique encore presente etc ..)
     state = {
         // Balles (plusieurs car possible multiball)
         balls: [],
-        paddles: null,
+        //bordure de la loose
+        deathEdge : [],
+        bouncingEdge : [],
+        paddle: null,
 
-    };
-
-    //temporaire: position de base de la balle
-    ballX = 400;
-    ballY= 300;
-    ballAngle = 30;
-
-    ballSpeed = 10;
-
-    ballVelocity = {
-        x: this.ballSpeed * Math.cos(CustomMath.degToRad(this.ballAngle)), // Trajectoire avec 30 degres dangle
-        y: this.ballSpeed * -1 * Math.sin(CustomMath.degToRad(this.ballAngle)), //Trajectoire avec 30 degres d'angle
     };
 
     start() {
@@ -85,6 +73,12 @@ class Game
         const imgBrick = new Image();
         imgBrick.src = brickImgSrc;
         this.images.brick = imgBrick
+
+        const imgEdge = new Image();
+        imgEdge.src = edgeImgSrc;
+        this.images.edge = imgEdge
+
+
     }
 
     // Mise en place des object du jeu sur la scene
@@ -98,8 +92,28 @@ class Game
             theBall.draw()
         })
 
-        ball.draw();
+        // Bordure de la loose
+        const deathEdge = new GameObject(this.images.edge, 800, 20)
+        deathEdge.setPosition(0,630)
+        this.state.deathEdge.push(deathEdge);
+        //on le dessine ou pas ??
 
+        //bordure a rebond
+        const EdgeTop = new GameObject(this.images.edge, 800,20)
+        EdgeTop.setPosition(0,0)
+
+
+        const EdgeRight = new GameObject(this.images.edge,20, 610)
+        EdgeRight.setPosition(780,20)
+
+
+        const EdgeLeft = new GameObject(this.images.edge, 20,610)
+        EdgeLeft.setPosition(0,20)
+        this.state.bouncingEdge.push(EdgeLeft, EdgeRight, EdgeTop);
+
+        this.state.bouncingEdge.forEach(TheEdge => {
+            TheEdge.draw()
+        })
     }
 
     //boucle d'animation
@@ -108,10 +122,17 @@ class Game
 
         this.ctx.clearRect(0, 0, 800, 600);
 
+        this.state.bouncingEdge.forEach(TheEdge => {
+            TheEdge.draw()
+        })
 
         //cycle de la balle au milieu de l'ecran
         this.state.balls.forEach(theBall => {
             theBall.update();
+
+
+
+
             //TODO en mieux: detection des collisions
             //Collision avec le cote droit ou gauche de la scene | Invertion du x de la velocité
 
@@ -130,19 +151,12 @@ class Game
             }
 
             theBall.draw()
+
         })
         //appelle de la frame suivantes
         requestAnimationFrame(this.loop.bind(this));
     }
 
-    // Fonction de test inutile dans le jeu
-    drawTest() {
-        this.ctx.beginPath();
-        this.ctx.fillStyle = '#ff007f';
-        this.ctx.arc(400, 300, 100, 0, Math.PI * 2 - Math.PI / 3);
-        this.ctx.closePath();
-        this.ctx.fill();
-    }
 }
 
 const theGame = new Game();

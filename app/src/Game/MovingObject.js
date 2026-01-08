@@ -24,14 +24,10 @@ export default class MovingObject extends GameObject
     }
 
     reverseVelocityX() {
-        this.velocity.x *= -1;
-        let radOrientation = Math.acos(this.velocity.x)
-        this.orientation = CustomMath.RadToDeg(radOrientation);
+        this.orientation = 180 - this.orientation;
     }
 
     reverseVelocityY() {
-        this.velocity.y *= -1;
-        let radOrientation = Math.asin(this.velocity.y)
-        this.orientation = CustomMath.RadToDeg(radOrientation);
+        this.orientation = -this.orientation;
     }
 }
