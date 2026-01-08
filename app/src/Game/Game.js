@@ -90,7 +90,7 @@ class Game
     // Mise en place des object du jeu sur la scene
     initGameObject(){
         // Balle
-        const ball = new Ball(this.images.ball, 20, 20, 45, 2);
+        const ball = new Ball(this.images.ball, 20, 20, 45, 4);
         ball.setPosition(400,300)
         this.state.balls.push(ball);
         // Dessin des balles
@@ -106,27 +106,31 @@ class Game
     loop()
     {
 
-        this.ctx.reset()
-
-        // Mise a jour de la position de la balle
-        this.ballX += this.ballVelocity.x;
-        this.ballY += this.ballVelocity.y;
+        this.ctx.clearRect(0, 0, 800, 600);
 
 
-        //TODO en mieux: detection des collisions
-        //Collision avec le cote droit ou gauche de la scene | Invertion du x de la velocité
+        //cycle de la balle au milieu de l'ecran
+        this.state.balls.forEach(theBall => {
+            theBall.update();
+            //TODO en mieux: detection des collisions
+            //Collision avec le cote droit ou gauche de la scene | Invertion du x de la velocité
 
-        if(this.ballX + 20 >= 800 || this.ballX <= 0) {
-            this.ballVelocity.x = this.ballVelocity.x * -1;
-        }
+            const bounds = theBall.getBounds();
 
-        //collition avec le cote haut ou bas d ela scene | invertion du y de la velocité
-        if(this.ballY >= 580 || this.ballY <= 0) {
-            this.ballVelocity.y = this.ballVelocity.y * -1;
-        }
+            //--collision avec le canvas
+            const oriantationBas = theBall
+            //bord de droite
+            if (bounds.right >= 800 || bounds.left <= 0) {
+               theBall.reverseVelocityX()
 
+            }
+            // bord gauche du canvas
+            if (bounds.bottom >= 600 || bounds.top <= 0) {
+                theBall.reverseVelocityY()
+            }
 
-        this.ctx.drawImage( this.ballImg, this.ballX, this.ballY );
+            theBall.draw()
+        })
         //appelle de la frame suivantes
         requestAnimationFrame(this.loop.bind(this));
     }

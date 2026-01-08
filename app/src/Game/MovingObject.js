@@ -10,19 +10,28 @@ export default class MovingObject extends GameObject
 
     constructor(image, width, height, orientation, speed) {
         super(image, width, height);
-
-
         this.velocity = new Vector()
-
         this.orientation = orientation
         this.speed = speed
     }
 
     update() {
-        let RadOrientation = this.speed * Math.cos(CustomMath.degToRad((this.orientation)))
+        let RadOrientation = CustomMath.degToRad((this.orientation))
         this.velocity.x = this.speed * Math.cos(RadOrientation)
-        this.velocity.y = this.speed * Math.cos(RadOrientation) * -1
+        this.velocity.y = (this.speed * Math.sin(RadOrientation)) * -1
         this.position.x += this.velocity.x;
-        this.position.y += this.velocity.y;
+        this.position.y += this.velocity.y ;
+    }
+
+    reverseVelocityX() {
+        this.velocity.x *= -1;
+        let radOrientation = Math.acos(this.velocity.x)
+        this.orientation = CustomMath.RadToDeg(radOrientation);
+    }
+
+    reverseVelocityY() {
+        this.velocity.y *= -1;
+        let radOrientation = Math.asin(this.velocity.y)
+        this.orientation = CustomMath.RadToDeg(radOrientation);
     }
 }
