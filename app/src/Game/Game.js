@@ -8,6 +8,7 @@ import edgeImgSrc from '../assets/img/edge.webp';
 import Ball from "./Ball";
 import GameObject from "./GameObject";
 import CollisionType from "./dataType/CollisionType";
+import Paddle from "./Paddle";
 
 
 class Game
@@ -28,6 +29,7 @@ class Game
         deathEdge : [],
         bouncingEdge : [],
         paddle: null,
+
 
     };
 
@@ -89,15 +91,13 @@ class Game
         ball.setPosition(400,300)
         this.state.balls.push(ball);
         // Dessin des balles
-        this.state.balls.forEach(theBall => {
-            theBall.draw()
-        })
+
 
         // Bordure de la loose
         const deathEdge = new GameObject(this.images.edge, 800, 20)
         deathEdge.setPosition(0,630)
-        this.state.deathEdge.push(deathEdge);
-        //on le dessine ou pas ??
+        this.state.deathEdge = (deathEdge);
+        //on le dessine pas
 
         //bordure a rebond
         const EdgeTop = new GameObject(this.images.edge, 800,20)
@@ -112,9 +112,12 @@ class Game
         EdgeLeft.setPosition(0,20)
         this.state.bouncingEdge.push(EdgeLeft, EdgeRight, EdgeTop);
 
-        this.state.bouncingEdge.forEach(TheEdge => {
-            TheEdge.draw()
-        })
+
+        //paddle
+        const paddle = new Paddle(this.images.paddle, 100, 20, 0, 0);
+        paddle.setPosition(350, 560)
+        this.state.paddle = paddle
+
     }
 
     //boucle d'animation
@@ -127,10 +130,23 @@ class Game
             TheEdge.draw()
         })
 
+        this.state.paddle.update();
+        this.state.paddle.draw();
+
+        const savedBalls = [];
+
         //cycle de la balle au milieu de l'ecran
         this.state.balls.forEach(theBall => {
+
+
             theBall.update();
-            // todo faire le bord de la mort
+
+
+            if( theBall.getCollisionType( this.state.deathEdge ) !== CollisionType.NONE ) {
+                return;
+            }
+            //on sauvgarde l aballe en cours
+            savedBalls.push( theBall );
             //collisions de la balle avec les bords
             this.state.bouncingEdge.forEach(TheEdge => {
                 const collisionType = theBall.getCollisionType(TheEdge);
@@ -158,6 +174,15 @@ class Game
             theBall.draw()
 
         })
+
+        this.state.balls = savedBalls;
+
+        // S'il n'y a aucune balle restante, on a perdu
+        if( this.state.balls.length <= 0 ) {
+            console.log( "T'es mort");
+            // On sort de loop()
+            return;
+        }
         //appelle de la frame suivantes
         requestAnimationFrame(this.loop.bind(this));
     }
