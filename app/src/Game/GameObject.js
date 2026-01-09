@@ -9,6 +9,7 @@ export default class GameObject
     image;
     position;
     size;
+    tag;
 
 
     constructor(image, width, height) {

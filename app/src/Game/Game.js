@@ -29,6 +29,11 @@ class Game
         deathEdge : [],
         bouncingEdge : [],
         paddle: null,
+        // entrée utilisateur
+        userInput:{
+            paddleLeft: false,
+            paddleRight: false
+        }
 
 
     };
@@ -48,7 +53,7 @@ class Game
     // Méthodes "privées"
     initHtmlUI(){
         const elH1 = document.createElement('h1');
-        elH1.textContent = 'Arkanoïd';
+        elH1.textContent = 'GAME.IO';
 
         const elCanvas = document.createElement( 'canvas' );
         elCanvas.width = 800;
@@ -58,6 +63,10 @@ class Game
 
         // Récupération du contexte de dessin
         this.ctx = elCanvas.getContext('2d');
+
+        // Ecouteur d'èvénement du clavier
+        document.addEventListener('keydown', this.handlerKeyboard.bind(this, true));
+        document.addEventListener('keyup', this.handlerKeyboard.bind(this, false));
     }
 
     //création des images
@@ -87,7 +96,7 @@ class Game
     // Mise en place des object du jeu sur la scene
     initGameObject(){
         // Balle
-        const ball = new Ball(this.images.ball, 20, 20, 45, 4);
+        const ball = new Ball(this.images.ball, 20, 20, 48, 1);
         ball.setPosition(400,300)
         this.state.balls.push(ball);
         // Dessin des balles
@@ -106,15 +115,17 @@ class Game
 
         const EdgeRight = new GameObject(this.images.edge,20, 610)
         EdgeRight.setPosition(780,20)
+        EdgeRight.tag = "RightEdge"
 
 
         const EdgeLeft = new GameObject(this.images.edge, 20,610)
         EdgeLeft.setPosition(0,20)
+        EdgeLeft.tag = "LeftEdge"
         this.state.bouncingEdge.push(EdgeLeft, EdgeRight, EdgeTop);
 
 
         //paddle
-        const paddle = new Paddle(this.images.paddle, 100, 20, 0, 0);
+        const paddle = new Paddle(this.images.paddle,100, 20, 0, 0);
         paddle.setPosition(350, 560)
         this.state.paddle = paddle
 
@@ -131,6 +142,52 @@ class Game
         })
 
         this.state.paddle.update();
+        //cycle du paddle
+        //on analyse quelle comlmande de mouvement est demander pour la paddle
+        if (this.state.userInput.paddleRight) {
+            this.state.paddle.orientation = 0;
+            this.state.paddle.speed = 7;
+        }
+        if (this.state.userInput.paddleLeft) {
+            this.state.paddle.orientation = 180;
+            this.state.paddle.speed = 7;
+        }
+
+        if (!this.state.userInput.paddleRight && !this.state.userInput.paddleLeft) {
+            this.state.paddle.orientation = 180;
+            this.state.paddle.speed = 0;
+        }
+        //TODO: Collision avec les bords, déplacement, etc
+
+        this.state.bouncingEdge.forEach(theEdge => {
+            const collisionType = this.state.paddle.getCollisionType(theEdge);
+
+            //si aucune collision ou autre que horizontal, on passe au edge suivant
+            if (collisionType !== CollisionType.HORIZONTAL) return;
+
+            //si la collision est horizontale, on arrete la vitesse du paddle
+            this.state.paddle.speed = 0;
+
+
+            //on recupere les limites de the edge
+            const edgeBounds = theEdge.getBounds();
+
+            // si on a toucher la bordure de droite
+            if (theEdge.tag === "RightEdge") {
+                this.state.paddle.position.x = edgeBounds.left - 1 - this.state.paddle.size.width;
+
+            } else if (theEdge.tag === "LeftEdge") {
+                this.state.paddle.position.x = edgeBounds.right + 1;
+            }
+
+            // si on a toucher la bordure de gauche
+
+
+            this.state.paddle.update();
+
+        })
+
+        //dessin du paddle
         this.state.paddle.draw();
 
         const savedBalls = [];
@@ -138,8 +195,8 @@ class Game
         //cycle de la balle au milieu de l'ecran
         this.state.balls.forEach(theBall => {
 
-
             theBall.update();
+
 
 
             if( theBall.getCollisionType( this.state.deathEdge ) !== CollisionType.NONE ) {
@@ -169,6 +226,12 @@ class Game
                 }
             })
 
+            const paddleCollision = theBall.getCollisionType( this.state.paddle );
+
+            if (paddleCollision === CollisionType.VERTICAL) {
+                theBall.reverseVelocityY();
+            }
+
 
 
             theBall.draw()
@@ -185,6 +248,24 @@ class Game
         }
         //appelle de la frame suivantes
         requestAnimationFrame(this.loop.bind(this));
+    }
+
+    // Gestionnaire d'évenement
+    handlerKeyboard(isActive, evt) {
+        //fleche droite
+        if (evt.key === 'Right' || evt.key === 'ArrowRight') {
+            if (isActive && this.state.userInput.paddleLeft) {
+                this.state.userInput.paddleLeft = false;
+            }
+            this.state.userInput.paddleRight = isActive;
+        }
+
+        if (evt.key === 'ArrowLeft' || evt.key === 'Left') {
+            if (isActive && this.state.userInput.paddleRight) {
+                this.state.userInput.paddleRight = false;
+            }
+            this.state.userInput.paddleLeft = isActive;
+        }
     }
 
 }
