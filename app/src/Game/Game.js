@@ -7,6 +7,7 @@ import brickImgSrc from '../assets/img/brick.png';
 import edgeImgSrc from '../assets/img/edge.webp';
 import Ball from "./Ball";
 import GameObject from "./GameObject";
+import CollisionType from "./dataType/CollisionType";
 
 
 class Game
@@ -129,26 +130,30 @@ class Game
         //cycle de la balle au milieu de l'ecran
         this.state.balls.forEach(theBall => {
             theBall.update();
+            // todo faire le bord de la mort
+            //collisions de la balle avec les bords
+            this.state.bouncingEdge.forEach(TheEdge => {
+                const collisionType = theBall.getCollisionType(TheEdge);
+
+                switch(collisionType)
+                {
+                    case CollisionType.NONE:
+                        return;
+
+                    case CollisionType.HORIZONTAL:
+                        theBall.reverseVelocityX();
+                        break;
+
+                    case CollisionType.VERTICAL:
+                        theBall.reverseVelocityY()
+                        break;
+
+                    default:
+                        break;
+                }
+            })
 
 
-
-
-            //TODO en mieux: detection des collisions
-            //Collision avec le cote droit ou gauche de la scene | Invertion du x de la velocité
-
-            const bounds = theBall.getBounds();
-
-            //--collision avec le canvas
-            const oriantationBas = theBall
-            //bord de droite
-            if (bounds.right >= 800 || bounds.left <= 0) {
-               theBall.reverseVelocityX()
-
-            }
-            // bord gauche du canvas
-            if (bounds.bottom >= 600 || bounds.top <= 0) {
-                theBall.reverseVelocityY()
-            }
 
             theBall.draw()
 
