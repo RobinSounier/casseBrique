@@ -235,11 +235,24 @@ class Game
             switch(paddleCollision)
             {
                 case CollisionType.HORIZONTAL:
-                    theBall.reverseVelocityX();
+                    //altérartion de l'angle en fonction de l'angle du paddle
+                    let alteration = 0
+                    if (this.state.userInput.paddleRight) {
+                        alteration = -100;
+                    } else if (this.state.userInput.paddleLeft) {
+                        alteration = 100;
+                    }
+                    theBall.reverseVelocityX(alteration);
+                    //correction pour un résultat de 0 ou de 180 pour éviter une traj horizontal
+                    if (theBall.orientation === 0) {
+                        alteration = 10;
+                    } else if (theBall.orientation === 180) {
+                        alteration = -10;
+                    }
                     break;
 
                 case CollisionType.VERTICAL:
-                    theBall.reverseVelocityY()
+                    theBall.reverseVelocityY();
                     break;
 
                 default:
