@@ -96,8 +96,12 @@ class Game
     // Mise en place des object du jeu sur la scene
     initGameObject(){
         // Balle
-        const ball = new Ball(this.images.ball, 20, 20, 48, 1);
+        const min = 50;
+        const max = 120;
+        const nombreAleatoire = Math.floor(Math.random() * (max - min + 1)) + min;
+        const ball = new Ball(this.images.ball, 20, 20, nombreAleatoire, 10);
         ball.setPosition(400,300)
+        ball.isCircular = true;
         this.state.balls.push(ball);
         // Dessin des balles
 
@@ -125,9 +129,9 @@ class Game
 
 
         //paddle
-        const paddle = new Paddle(this.images.paddle,100, 20, 0, 0);
-        paddle.setPosition(350, 560)
-        this.state.paddle = paddle
+        const paddle1 = new Paddle(this.images.paddle,100, 20, 0, 0);
+        paddle1.setPosition(350, 560)
+        this.state.paddle = paddle1
 
     }
 
@@ -228,8 +232,18 @@ class Game
 
             const paddleCollision = theBall.getCollisionType( this.state.paddle );
 
-            if (paddleCollision === CollisionType.VERTICAL) {
-                theBall.reverseVelocityY();
+            switch(paddleCollision)
+            {
+                case CollisionType.HORIZONTAL:
+                    theBall.reverseVelocityX();
+                    break;
+
+                case CollisionType.VERTICAL:
+                    theBall.reverseVelocityY()
+                    break;
+
+                default:
+                    break;
             }
 
 
