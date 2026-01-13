@@ -1,5 +1,6 @@
 // Import de la feuille de style
 import '../assets/css/style.css';
+import levelsConfig from '../levels.json'
 //import des donné de configuration
 import customConfig from '../config.json';
 //import des assets de sprites
@@ -11,44 +12,48 @@ import Ball from "./Ball";
 import GameObject from "./GameObject";
 import CollisionType from "./dataType/CollisionType";
 import Paddle from "./Paddle";
+import Brick from "./Brick";
 
 
 
-class Game
-{
+class Game {
     // Contexte de dessin du canvas
     ctx;
+    //DONNÉE DES NIVEAUX
+    levels;
+
     images = {
         ball: null,
         paddle: null,
         brick: null,
         edge: null
-    }
+    };
     // State (un object qui decrit l'etat actuel du jeu, les balles, les brique encore presente etc ..)
     state = {
         // Balles (plusieurs car possible multiball)
         balls: [],
         //bordure de la loose
-        deathEdge : [],
-        bouncingEdge : [],
+        deathEdge: [],
+        bouncingEdge: [],
         paddle: null,
         // entrée utilisateur
-        userInput:{
+        userInput: {
             paddleLeft: false,
             paddleRight: false
-        }
+        },
+        bricks: []
     };
 
-    config={
-        canvasSize : {
+    config = {
+        canvasSize: {
             width: 800,
             height: 600
         },
         ball: {
-            radius : 10,
-            orientation : Math.floor(Math.random() * (120 - 50 + 1)) + 50,
+            radius: 10,
+            orientation: Math.floor(Math.random() * (120 - 50 + 1)) + 50,
             speed: 3,
-            position : {
+            position: {
                 x: 400,
                 y: 300
             },
@@ -56,14 +61,16 @@ class Game
 
         },
         paddleSize: {
-            width : 100,
-            height : 20
+            width: 100,
+            height: 20
         }
 
     }
 
-    constructor(customConfig){
+    constructor(customConfig = {}, levelsConfig = []) {
         Object.assign(this.config, customConfig);
+
+        this.levels = levelsConfig
     }
 
     start() {
@@ -79,15 +86,15 @@ class Game
     }
 
     // Méthodes "privées"
-    initHtmlUI(){
+    initHtmlUI() {
         const elH1 = document.createElement('h1');
         elH1.textContent = 'GAME.IO';
 
-        const elCanvas = document.createElement( 'canvas' );
+        const elCanvas = document.createElement('canvas');
         elCanvas.width = this.config.canvasSize.width;
         elCanvas.height = this.config.canvasSize.height;
 
-        document.body.append( elH1, elCanvas );
+        document.body.append(elH1, elCanvas);
 
         // Récupération du contexte de dessin
         this.ctx = elCanvas.getContext('2d');
@@ -98,7 +105,7 @@ class Game
     }
 
     //création des images
-    initImages(){
+    initImages() {
         //ball
         const imgBall = new Image();
         imgBall.src = ballImgSrc;
@@ -122,11 +129,11 @@ class Game
     }
 
     // Mise en place des object du jeu sur la scene
-    initGameObject(){
+    initGameObject() {
         // Balle
         const ballDiameter = this.config.ball.radius * 2;
         const ball = new Ball(this.images.ball, ballDiameter, ballDiameter, this.config.ball.orientation, this.config.ball.speed);
-        ball.setPosition(this.config.ball.position.x,this.config.ball.position.y);
+        ball.setPosition(this.config.ball.position.x, this.config.ball.position.y);
         ball.isCircular = true;
         this.state.balls.push(ball);
         // Dessin des balles
@@ -134,43 +141,76 @@ class Game
 
         // Bordure de la loose
         const deathEdge = new GameObject(this.images.edge, this.config.canvasSize.width, 20)
-        deathEdge.setPosition(0,this.config.canvasSize.height + 30);
+        deathEdge.setPosition(0, this.config.canvasSize.height + 30);
         this.state.deathEdge = (deathEdge);
         //on le dessine pas
 
         //bordure a rebond
         //haut
-        const EdgeTop = new GameObject(this.images.edge, this.config.canvasSize.width,20)
-        EdgeTop.setPosition(0,0)
+        const EdgeTop = new GameObject(this.images.edge, this.config.canvasSize.width, 20)
+        EdgeTop.setPosition(0, 0)
 
         //Droite
-        const EdgeRight = new GameObject(this.images.edge,20, this.config.canvasSize.height + 10)
-        EdgeRight.setPosition(this.config.canvasSize.width - 20,20)
+        const EdgeRight = new GameObject(this.images.edge, 20, this.config.canvasSize.height + 10)
+        EdgeRight.setPosition(this.config.canvasSize.width - 20, 20)
         EdgeRight.tag = "RightEdge"
 
         //Gauche
-        const EdgeLeft = new GameObject(this.images.edge, 20,this.config.canvasSize.height + 10)
-        EdgeLeft.setPosition(0,20)
+        const EdgeLeft = new GameObject(this.images.edge, 20, this.config.canvasSize.height + 10)
+        EdgeLeft.setPosition(0, 20)
         EdgeLeft.tag = "LeftEdge"
         this.state.bouncingEdge.push(EdgeLeft, EdgeRight, EdgeTop);
 
 
         //paddle
-        const paddle1 = new Paddle(this.images.paddle,this.config.paddleSize.width, this.config.paddleSize.height, 0, 0);
+        const paddle1 = new Paddle(this.images.paddle, this.config.paddleSize.width, this.config.paddleSize.height, 0, 0);
         paddle1.setPosition(350, 560)
         this.state.paddle = paddle1
+
+        //brick
+        this.loadBricks(this.levels.data[0])
+
+
+
+    }
+
+    //création des brick
+    loadBricks(levelArray) {
+        // lignes
+        for(let line = 0; line < levelArray.length; line ++){
+            //colonnes
+            for (let col = 0; col <16; col++) {
+                //si la valeur trouver est 0, c'est un espace vide, donc on passe a la column suivante
+                let brickType = levelArray[line][col]
+                if (brickType === 0) continue;
+
+                //si on a bien une brique on la crée et on la met dans le state
+                const brick = new Brick(this.images.brick, 50, 25, brickType)
+
+                brick.setPosition(50 * col, 25 * line + 20)
+
+                this.state.bricks.push(brick)
+
+
+            }
+        }
+
+        console.log(this.state.bricks)
 
     }
 
     //boucle d'animation
-    loop()
-    {
+    loop() {
         //suprime les element a chaque frame
         this.ctx.clearRect(0, 0, this.config.canvasSize.width, this.config.canvasSize.height);
 
         //on les redessine
         this.state.bouncingEdge.forEach(TheEdge => {
             TheEdge.draw()
+        })
+
+        this.state.bricks.forEach(brick => {
+            brick.draw()
         })
 
         this.state.paddle.update();
@@ -230,17 +270,16 @@ class Game
 
             theBall.update();
 
-            if( theBall.getCollisionType( this.state.deathEdge ) !== CollisionType.NONE ) {
+            if (theBall.getCollisionType(this.state.deathEdge) !== CollisionType.NONE) {
                 return;
             }
             //on sauvgarde la balle en cours
-            savedBalls.push( theBall );
+            savedBalls.push(theBall);
             //collisions de la balle avec les bords
             this.state.bouncingEdge.forEach(TheEdge => {
                 const collisionType = theBall.getCollisionType(TheEdge);
 
-                switch(collisionType)
-                {
+                switch (collisionType) {
                     case CollisionType.NONE:
                         return;
 
@@ -257,10 +296,9 @@ class Game
                 }
             })
 
-            const paddleCollision = theBall.getCollisionType( this.state.paddle );
+            const paddleCollision = theBall.getCollisionType(this.state.paddle);
 
-            switch(paddleCollision)
-            {
+            switch (paddleCollision) {
                 case CollisionType.HORIZONTAL:
 
 
@@ -297,8 +335,8 @@ class Game
         this.state.balls = savedBalls;
 
         // S'il n'y a aucune balle restante, on a perdu
-        if( this.state.balls.length <= 0 ) {
-            console.log( "T'es mort");
+        if (this.state.balls.length <= 0) {
+            console.log("T'es mort");
             // On sort de loop()
             return;
         }
@@ -326,6 +364,6 @@ class Game
 
 }
 
-const theGame = new Game(customConfig);
+const theGame = new Game(customConfig, levelsConfig);
 
 export default theGame;
