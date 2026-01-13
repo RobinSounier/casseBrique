@@ -1,5 +1,7 @@
 // Import de la feuille de style
 import '../assets/css/style.css';
+//import des donné de configuration
+import customConfig from '../config.json';
 //import des assets de sprites
 import ballImgSrc from '../assets/img/ball.png';
 import paddleImgSrc from '../assets/img/paddle.png';
@@ -9,6 +11,7 @@ import Ball from "./Ball";
 import GameObject from "./GameObject";
 import CollisionType from "./dataType/CollisionType";
 import Paddle from "./Paddle";
+
 
 
 class Game
@@ -57,6 +60,10 @@ class Game
             height : 20
         }
 
+    }
+
+    constructor(customConfig){
+        Object.assign(this.config, customConfig);
     }
 
     start() {
@@ -319,6 +326,6 @@ class Game
 
 }
 
-const theGame = new Game();
+const theGame = new Game(customConfig);
 
 export default theGame;

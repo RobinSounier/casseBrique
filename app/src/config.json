@@ -1,0 +1,22 @@
+{
+  "canvasSize" : {
+    "width": 800,
+    "height": 600
+  },
+  "ball": {
+    "radius" : 10,
+    "orientation" : 45,
+    "speed": 3,
+    "position" : {
+      "x": 400,
+      "y": 500
+    },
+    "angleAlteration": 35
+
+  },
+  "paddleSize": {
+    "width" : 100,
+    "height" : 20
+  }
+
+}
