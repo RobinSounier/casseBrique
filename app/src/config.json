@@ -5,8 +5,8 @@
   },
   "ball": {
     "radius" : 10,
-    "orientation" : 45,
-    "speed": 3,
+    "orientation" : 47,
+    "speed": 6,
     "position" : {
       "x": 420,
       "y": 500

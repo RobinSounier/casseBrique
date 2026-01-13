@@ -195,152 +195,143 @@ class Game {
             }
         }
 
-        console.log(this.state.bricks)
-
     }
 
-    //boucle d'animation
-    loop() {
-        //suprime les element a chaque frame
-        this.ctx.clearRect(0, 0, this.config.canvasSize.width, this.config.canvasSize.height);
-
-        //on les redessine
-        this.state.bouncingEdge.forEach(TheEdge => {
-            TheEdge.draw()
-        })
-
-        this.state.bricks.forEach(brick => {
-            brick.draw()
-        })
-
-        this.state.paddle.update();
-        //cycle du paddle
-        //on analyse quelle comlmande de mouvement est demander pour la paddle
+    checkUserInput() {
+        // On analyse quelle commande de mouvement est demandée pour le paddle
         if (this.state.userInput.paddleRight) {
             this.state.paddle.orientation = 0;
             this.state.paddle.speed = 7;
-        }
-        if (this.state.userInput.paddleLeft) {
+        } else if (this.state.userInput.paddleLeft) {
             this.state.paddle.orientation = 180;
             this.state.paddle.speed = 7;
-        }
-
-        if (!this.state.userInput.paddleRight && !this.state.userInput.paddleLeft) {
+        } else {
+            // Si aucune touche, on immobilise le paddle
             this.state.paddle.orientation = 180;
             this.state.paddle.speed = 0;
         }
+    }
 
-        //Collision du paddle
-        //avec le lift quand on bouge le paddle
+    checkCollision() {
+        // 1. Collision du paddle avec les murs
         this.state.bouncingEdge.forEach(theEdge => {
             const collisionType = this.state.paddle.getCollisionType(theEdge);
-
-            //si aucune collision ou autre que horizontal, on passe au edge suivant
             if (collisionType !== CollisionType.HORIZONTAL) return;
-
-            //si la collision est horizontale, on arrete la vitesse du paddle
             this.state.paddle.speed = 0;
-
-
-            //on recupere les limites de the edge
             const edgeBounds = theEdge.getBounds();
-
-            // si on a toucher la bordure de droite
             if (theEdge.tag === "RightEdge") {
                 this.state.paddle.position.x = edgeBounds.left - 1 - this.state.paddle.size.width;
-
             } else if (theEdge.tag === "LeftEdge") {
                 this.state.paddle.position.x = edgeBounds.right + 1;
             }
+        });
 
-            // si on a toucher la bordure de gauche
-
-
-            this.state.paddle.update();
-
-        })
-
-        //dessin du paddle
-        this.state.paddle.draw();
-
-        const savedBalls = [];
-
-        //cycle de la balle au milieu de l'ecran
+        // 2. Collision des balles avec les éléments du jeu
         this.state.balls.forEach(theBall => {
 
-            theBall.update();
-
-            if (theBall.getCollisionType(this.state.deathEdge) !== CollisionType.NONE) {
-                return;
-            }
-            //on sauvgarde la balle en cours
-            savedBalls.push(theBall);
-            //collisions de la balle avec les bords
+            // --- COLLISION AVEC LES MURS ---
             this.state.bouncingEdge.forEach(TheEdge => {
                 const collisionType = theBall.getCollisionType(TheEdge);
+                if (collisionType === CollisionType.HORIZONTAL) theBall.reverseVelocityX();
+                if (collisionType === CollisionType.VERTICAL) theBall.reverseVelocityY();
+            });
 
-                switch (collisionType) {
-                    case CollisionType.NONE:
-                        return;
+            // --- COLLISION AVEC LES BRIQUES ---
+            // On utilise filter pour reconstruire le tableau sans les briques touchées
+            this.state.bricks = this.state.bricks.filter(brick => {
+                const brickCollision = theBall.getCollisionType(brick);
 
-                    case CollisionType.HORIZONTAL:
+                if (brickCollision !== CollisionType.NONE) {
+                    // Si collision, on inverse la trajectoire de la balle
+                    if (brickCollision === CollisionType.HORIZONTAL) {
                         theBall.reverseVelocityX();
-                        break;
+                    } else if (brickCollision === CollisionType.VERTICAL) {
+                        theBall.reverseVelocityY();
+                    }
 
-                    case CollisionType.VERTICAL:
-                        theBall.reverseVelocityY()
-                        break;
-
-                    default:
-                        break;
+                    // On retourne "false" pour que cette brique soit retirée du tableau
+                    return false;
                 }
-            })
+                // On garde la brique si aucune collision
+                return true;
+            });
 
+            // --- COLLISION AVEC LE PADDLE ---
             const paddleCollision = theBall.getCollisionType(this.state.paddle);
-
-            switch (paddleCollision) {
-                case CollisionType.HORIZONTAL:
-
-
+            if (paddleCollision !== CollisionType.NONE) {
+                if (paddleCollision === CollisionType.HORIZONTAL) {
                     theBall.reverseVelocityX();
-
-                    break;
-
-                case CollisionType.VERTICAL:
-                    let alteration = 0
+                } else if (paddleCollision === CollisionType.VERTICAL) {
+                    let alteration = 0;
                     if (this.state.userInput.paddleRight) {
                         alteration = -1 * this.config.ball.angleAlteration;
                     } else if (this.state.userInput.paddleLeft) {
                         alteration = this.config.ball.angleAlteration;
                     }
                     theBall.reverseVelocityY(alteration);
-                    //correction pour un résultat de 0 ou de 180 pour éviter une traj horizontal
-                    if (theBall.orientation === 0) {
-                        theBall.orientation = 10;
-                    } else if (theBall.orientation === 180) {
-                        theBall.orientation = -10;
-                    }
-                    break;
 
-                default:
-                    break;
+                    if (theBall.orientation === 0) theBall.orientation = 10;
+                    else if (theBall.orientation === 180) theBall.orientation = -10;
+                }
             }
+        });
+    }
 
+    updateObject() {
+        // Mise à jour de la position du paddle
+        this.state.paddle.update();
 
+        // Mise à jour et filtrage des balles
+        const savedBalls = [];
+        this.state.balls.forEach(theBall => {
+            theBall.update();
 
-            theBall.draw()
-
-        })
-
+            // Si la balle ne touche pas le bas (deathEdge), on la garde
+            if (theBall.getCollisionType(this.state.deathEdge) === CollisionType.NONE) {
+                savedBalls.push(theBall);
+            }
+        });
         this.state.balls = savedBalls;
+    }
 
-        // S'il n'y a aucune balle restante, on a perdu
-        if (this.state.balls.length <= 0) {
-            console.log("T'es mort");
-            // On sort de loop()
-            return;
-        }
-        //appelle de la frame suivantes
+    renderObject() {
+        // 1. Nettoyage de l'écran
+        this.ctx.clearRect(0, 0, this.config.canvasSize.width, this.config.canvasSize.height);
+
+        // 2. Dessin des murs
+        this.state.bouncingEdge.forEach(TheEdge => {
+            TheEdge.draw();
+        });
+
+        // 3. Dessin des briques
+        this.state.bricks.forEach(brick => {
+            brick.draw();
+        });
+
+        // 4. Dessin du paddle
+        this.state.paddle.draw();
+
+        // 5. Dessin des balles
+        this.state.balls.forEach(theBall => {
+            theBall.draw();
+        });
+    }
+
+    //boucle d'animation
+    loop() {
+        // 1. On regarde ce que veut l'utilisateur
+        this.checkUserInput();
+
+        // 2. On calcule si des objets se touchent et on ajuste les trajectoires
+        this.checkCollision();
+
+        // 3. On applique les mouvements et on vérifie si on est mort
+        this.updateObject();
+
+        // 4. On dessine tout le monde à sa nouvelle position
+        this.renderObject();
+
+        // Relance la boucle
         requestAnimationFrame(this.loop.bind(this));
     }
 
