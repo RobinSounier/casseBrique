@@ -284,7 +284,37 @@ class Game {
                     default:
                         break;
                 }
+
+
+
+
             });
+
+            // collision de la balle avec les briques
+            this.state.bricks.forEach( theBrick => {
+                const collisionType = theBall.getCollisionType( theBrick );
+
+                switch( collisionType ) {
+                    case CollisionType.NONE:
+                        return;
+
+                    case CollisionType.HORIZONTAL:
+                        theBall.reverseVelocityX();
+                        break;
+
+                    case CollisionType.VERTICAL:
+                        theBall.reverseVelocityY();
+                        break;
+
+                    default:
+                        break;
+                }
+
+                //ici on a forcément une collision (car la premiere clause du switch fait un return)
+                //Disparition de la brique avec la récistance
+                theBrick.strength --
+            })
+
 
             // Collision avec le paddle
             const paddleCollisionType = theBall.getCollisionType( this.state.paddle );
@@ -326,6 +356,11 @@ class Game {
         this.state.balls.forEach( theBall => {
             theBall.update();
         });
+
+        //brick
+        // on ne conserve dans le state que les brique dont le strength ets différent de 0
+        this.state.bricks = this.state.bricks.filter(theBrick => theBrick.strength !== 0 )
+
     }
 
     // Cycle de vie: 4- Rendu graphique des GameObjects
@@ -373,15 +408,98 @@ class Game {
         this.renderObjects();
 
         // S'il n'y a aucune balle restante, on a perdu
-        if( this.state.balls.length <= 0 ) {
-            console.log( "Kaboooooooom !!!");
-            // On sort de loop()
-            return;
+        // S'il n'y a aucune balle restante, on a perdu
+        if (this.state.balls.length <= 0) {
+            this.showDeathModal();
+            return; // Stop la boucle loop()
         }
 
         // Appel de la frame suivante
         requestAnimationFrame( this.loop.bind(this) );
     }
+
+
+
+// --- Ajoute cette méthode dans ton objet ou ta classe ---
+showDeathModal() {
+    // 1. Création du conteneur (Overlay)
+    const overlay = document.createElement('div');
+    Object.assign(overlay.style, {
+        position: 'fixed',
+        top: '0', left: '0', width: '100%', height: '100%',
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: '10000',
+        fontFamily: 'Arial, sans-serif',
+        backdropFilter: 'blur(10px)'
+    });
+
+    // 2. Création de la boîte de contenu
+    const content = document.createElement('div');
+    Object.assign(content.style, {
+        textAlign: 'center',
+        padding: '50px',
+        border: '3px solid #ff0044',
+        borderRadius: '20px',
+        backgroundColor: '#111',
+        boxShadow: '0 0 30px #ff0044'
+    });
+
+    // 3. Titre et texte
+    content.innerHTML = `
+        <h1 style="color: #ff0044; font-size: 50px; margin: 0 0 10px 0; text-transform: uppercase;">
+            Kabooooooom !!!
+        </h1>
+        <p style="color: white; font-size: 18px; margin-bottom: 30px;">
+            Toutes les balles ont été pulvérisées.
+        </p>
+    `;
+
+    // 4. Bouton Rejouer
+    const btn = document.createElement('button');
+    btn.innerText = "TENTER MA CHANCE À NOUVEAU";
+    Object.assign(btn.style, {
+        padding: '15px 30px',
+        fontSize: '16px',
+        fontWeight: 'bold',
+        cursor: 'pointer',
+        backgroundColor: '#ff0044',
+        color: 'white',
+        border: 'none',
+        borderRadius: '5px',
+        transition: '0.3s'
+    });
+
+    // Effet de survol (hover)
+    btn.onmouseover = () => btn.style.transform = "scale(1.1)";
+    btn.onmouseout = () => btn.style.transform = "scale(1)";
+
+    // Action du bouton
+    btn.onclick = () => location.reload();
+
+    // Montage de la modale
+    content.appendChild(btn);
+    overlay.appendChild(content);
+    document.body.appendChild(overlay);
+
+    // Petit effet de tremblement d'écran à l'apparition
+    document.body.style.animation = "shake 0.5s";
+
+    // Ajout d'une animation CSS rapide pour le tremblement
+    const styleSheet = document.createElement("style");
+    styleSheet.innerText = `
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            50% { transform: translate(-1px, 2px) rotate(1deg); }
+            100% { transform: translate(0, 0) rotate(0deg); }
+        }
+    `;
+    document.head.appendChild(styleSheet);
+}
 
 
     // Gestionnaire d'évenement

@@ -26,46 +26,48 @@ export default class MovingObject extends GameObject
         this.position.y += this.velocity.y ;
     }
 
-    getCollisionType(ForeignGameObject){
-        const bounds = this.getBounds()
-        const foreignBounds = ForeignGameObject.getBounds();
-        const radius = this.isCircular ? this.size.width/2 : 0;
+    getCollisionType( foreignGameObject ) {
+        const bounds = this.getBounds();
+        const foreignBounds = foreignGameObject.getBounds();
+        const radius = this.isCircular ? this.size.width / 2 : 0;
         const boundsBias = new Bounds(
             radius,
-            -1*radius,
-            -1*radius,
+            -1 * radius,
+            -1 * radius,
             radius
-        )
+        );
 
-        //collison horizontal
-        if (
+        // Collision Horizontale (bords droite et gauche)
+        if(
             (
-                bounds.right >= foreignBounds.left
+                bounds.right >= foreignBounds.left - 1
                 && bounds.right <= foreignBounds.right
                 ||
-                bounds.left <= foreignBounds.right
+                bounds.left <= foreignBounds.right + 1
                 && bounds.left >= foreignBounds.left
             )
             && bounds.top + boundsBias.top >= foreignBounds.top
             && bounds.bottom + boundsBias.bottom <= foreignBounds.bottom
         ) {
-            return CollisionType.HORIZONTAL
-        }
-        //collison Vertical (bord haut et bas)
-        else if (
-            (
-                bounds.top <= foreignBounds.bottom
-                && bounds.top >= foreignBounds.top
-                ||
-                bounds.bottom >= foreignBounds.top
-                && bounds.bottom <= foreignBounds.bottom
-            )
-            && bounds.left >= foreignBounds.left
-            && bounds.right <= foreignBounds.right
-        ) {
-            return CollisionType.VERTICAL
+            return CollisionType.HORIZONTAL;
         }
 
+        // Collision Verticale (bords haut et bas)
+        else if(
+            (
+                bounds.top <= foreignBounds.bottom + 1
+                && bounds.top >= foreignBounds.top
+                ||
+                bounds.bottom >= foreignBounds.top - 1
+                && bounds.bottom <= foreignBounds.bottom
+            )
+            && bounds.left + boundsBias.left >= foreignBounds.left
+            && bounds.right + boundsBias.right <= foreignBounds.right
+        ) {
+            return CollisionType.VERTICAL;
+        }
+
+        // Aucune Collision
         return CollisionType.NONE;
     }
 
