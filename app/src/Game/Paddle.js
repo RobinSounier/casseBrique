@@ -16,7 +16,7 @@ export default class Paddle extends MovingObject
             this.image,
             0,
             sourceY,
-            this.size.width,
+            100,
             this.size.height,
             this.position.x,
             this.position.y,

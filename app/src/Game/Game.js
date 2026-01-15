@@ -8,11 +8,14 @@ import ballImgSrc from '../assets/img/ball.png';
 import paddleImgSrc from '../assets/img/paddle.png';
 import brickImgSrc from '../assets/img/brick.png';
 import edgeImgSrc from '../assets/img/edge.webp';
+import powerImgSrc from '../assets/img/power.png';
+import powerPaddleImgSrc from '../assets/img/powerPaddle.png';
 import Ball from "./Ball";
 import GameObject from "./GameObject";
 import CollisionType from "./dataType/CollisionType";
 import Paddle from "./Paddle";
 import Brick from "./Brick";
+import PowerUp from "./PowerUP";
 
 
 
@@ -26,7 +29,9 @@ class Game {
         ball: null,
         paddle: null,
         brick: null,
-        edge: null
+        edge: null,
+        power: null,
+        powerPaddle: null,
     };
     // State (un object qui decrit l'etat actuel du jeu, les balles, les brique encore presente etc ..)
     state = {
@@ -43,7 +48,8 @@ class Game {
         },
         bricks: [],
         levels: 0,
-        score: 0
+        score: 0,
+        powers: []
     };
 
     config = {
@@ -63,7 +69,7 @@ class Game {
 
         },
         paddleSize: {
-            width: 100,
+            width: 200,
             height: 20
         }
 
@@ -136,6 +142,16 @@ class Game {
         imgEdge.src = edgeImgSrc;
         this.images.edge = imgEdge
 
+        // Ajoute l'import du sprite
+        const imgPower = new Image();
+        imgPower.src = powerImgSrc;
+        this.images.power = imgPower;
+
+
+        const imgPowerPaddle = new Image();
+        imgPowerPaddle.src = powerPaddleImgSrc;
+        this.images.powerPaddle = imgPowerPaddle;
+
 
     }
 
@@ -178,9 +194,9 @@ class Game {
 
 
         //paddle
-        const paddle1 = new Paddle(this.images.paddle, this.config.paddleSize.width, this.config.paddleSize.height, 0, 0);
-        paddle1.setPosition(350, 560)
-        this.state.paddle = paddle1
+        const paddle = new Paddle(this.images.paddle, this.config.paddleSize.width, this.config.paddleSize.height, 0, 0);
+        paddle.setPosition(350, 560)
+        this.state.paddle = paddle
 
         //brick
         this.loadBricks(this.levels.data[this.state.levels])
@@ -266,6 +282,61 @@ class Game {
             this.state.paddle.update();
         });
 
+        this.state.powers = this.state.powers.filter((thePowers) => {
+            const collisionType = thePowers.getCollisionType(this.state.paddle);
+
+            // 1. Si pas de collision, on garde le bonus à l'écran
+            if (collisionType === CollisionType.NONE) {
+                return true;
+            }
+
+
+            if (thePowers.tag === "multiball") {
+
+
+                const ballDiameter = this.config.ball.radius * 2;
+                const ballPower = new Ball(
+                    this.images.ball,
+                    ballDiameter,
+                    ballDiameter,
+                    Math.floor(Math.random() * 360),
+                    this.config.ball.speed
+                );
+
+                ballPower.setPosition(
+                    this.state.paddle.position.x + (this.state.paddle.size.width / 2),
+                    this.state.paddle.position.y - 40
+                );
+                ballPower.isCircular = true;
+                this.state.balls.push(ballPower);
+
+                // On retourne false car le bonus est consommé
+                return false;
+            }
+
+
+            if (thePowers.tag === "bigPaddle") {
+                // MODIFICATION ICI : on change la largeur dans l'objet size
+                this.state.paddle.size.width = 200;
+
+                // Timer pour revenir à la taille normale
+                if (this.paddleTimeout) clearTimeout(this.paddleTimeout);
+                this.paddleTimeout = setTimeout(() => {
+                    this.state.paddle.size.width = 100;
+                }, 10000);
+
+                return false;
+            }
+
+
+
+            return false;
+        });
+
+
+
+
+
         // Collisions des balles avec tous les objets
         // On crée un tableau pour stocker les balles non-perdues
         const savedBalls = [];
@@ -335,7 +406,23 @@ class Game {
                         this.state.score++;
                         this.elScore.textContent = `Score : ${this.state.score}`;
                     }
+
+                    if (Math.random() < 0.2) {
+                        const power = new PowerUp(this.images.power, 32, 32, 2);
+                        power.setPosition(theBrick.position.x + 10, theBrick.position.y);
+                        power.tag = "multiball"
+                        this.state.powers.push(power);
+
+                    }
+
+                    if (Math.random() < 0.3) {
+                        const power1 = new PowerUp(this.images.powerPaddle, 32, 32, 2);
+                        power1.setPosition(theBrick.position.x + 10, theBrick.position.y);
+                        power1.tag = "bigPaddle"
+                        this.state.powers.push(power1);
+                    }
                 }
+
             })
 
 
@@ -369,6 +456,8 @@ class Game {
             }
         });
 
+
+
         // Mise à jour du state.balls avec savedBalls
         this.state.balls = savedBalls;
     }
@@ -380,10 +469,17 @@ class Game {
             theBall.update();
         });
 
+        this.state.powers.forEach((p) => {
+            p.update();
+            p.updateAnimation();
+        });
+
+
+
         //brick
         // on ne conserve dans le state que les brique dont le strength ets différent de 0
         this.state.bricks = this.state.bricks.filter(theBrick => theBrick.strength !== 0 )
-
+        //
         this.state.paddle.updateKeyframe();
 
     }
@@ -416,11 +512,14 @@ class Game {
             theBall.draw();
         });
 
+        this.state.powers.forEach(p => p.draw());
+
+
 
     }
 
     // Boucle d'animation
-    loop(stamp, levels) {
+    loop(stamp) {
         // Enregistrement du stamp actuel
         this.currentLoopStamp = stamp;
         // Cycle 1
