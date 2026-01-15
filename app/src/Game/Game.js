@@ -41,7 +41,9 @@ class Game {
             paddleLeft: false,
             paddleRight: false
         },
-        bricks: []
+        bricks: [],
+        levels: 0,
+        score: 0
     };
 
     config = {
@@ -66,6 +68,9 @@ class Game {
         }
 
     }
+
+    // Timestamp haute résolution de la boucle d'animation
+    currentLoopStamp;
 
     constructor(customConfig = {}, levelsConfig = []) {
         Object.assign(this.config, customConfig);
@@ -102,6 +107,12 @@ class Game {
         // Ecouteur d'èvénement du clavier
         document.addEventListener('keydown', this.handlerKeyboard.bind(this, true));
         document.addEventListener('keyup', this.handlerKeyboard.bind(this, false));
+
+        this.elScore = document.createElement("span");
+        this.elScore.style.color = "white"; // Optionnel : pour bien le voir sur le fond noir
+        this.elScore.textContent = `Score : ${this.state.score}`;
+        document.body.append(this.elScore);
+
     }
 
     //création des images
@@ -130,6 +141,10 @@ class Game {
 
     // Mise en place des object du jeu sur la scene
     initGameObject() {
+        //on renitialise le state
+        this.state.balls = [];
+        this.state.bouncingEdge = [];
+        this.state.bricks = [];
         // Balle
         const ballDiameter = this.config.ball.radius * 2;
         const ball = new Ball(this.images.ball, ballDiameter, ballDiameter, this.config.ball.orientation, this.config.ball.speed);
@@ -168,7 +183,7 @@ class Game {
         this.state.paddle = paddle1
 
         //brick
-        this.loadBricks(this.levels.data[0])
+        this.loadBricks(this.levels.data[this.state.levels])
 
 
 
@@ -312,7 +327,15 @@ class Game {
 
                 //ici on a forcément une collision (car la premiere clause du switch fait un return)
                 //Disparition de la brique avec la récistance
-                theBrick.strength --
+                if (theBrick.type !== -1) {
+                    theBrick.strength--;
+
+                    //incrémentation du score
+                    if (theBrick.strength === 0) {
+                        this.state.score++;
+                        this.elScore.textContent = `Score : ${this.state.score}`;
+                    }
+                }
             })
 
 
@@ -361,6 +384,8 @@ class Game {
         // on ne conserve dans le state que les brique dont le strength ets différent de 0
         this.state.bricks = this.state.bricks.filter(theBrick => theBrick.strength !== 0 )
 
+        this.state.paddle.updateKeyframe();
+
     }
 
     // Cycle de vie: 4- Rendu graphique des GameObjects
@@ -391,10 +416,13 @@ class Game {
             theBall.draw();
         });
 
+
     }
 
     // Boucle d'animation
-    loop() {
+    loop(stamp, levels) {
+        // Enregistrement du stamp actuel
+        this.currentLoopStamp = stamp;
         // Cycle 1
         this.checkUserInput();
 
@@ -407,11 +435,26 @@ class Game {
         // Cycle 4
         this.renderObjects();
 
+        console.log(this.state.score)
+
         // S'il n'y a aucune balle restante, on a perdu
         // S'il n'y a aucune balle restante, on a perdu
         if (this.state.balls.length <= 0) {
             this.showDeathModal();
             return; // Stop la boucle loop()
+        }
+        const bricksWin = this.state.bricks.filter(theBrick => theBrick.strength > 0 );
+
+        if (bricksWin <= 0) {
+            // On nettoie le canvas avant d'afficher la modale
+            this.ctx.clearRect(0, 0, this.config.canvasSize.width, this.config.canvasSize.height);
+
+            // On affiche la modale de victoire
+            this.showWinModal();
+
+            // TRÈS IMPORTANT : On stoppe la boucle actuelle ici.
+            // La boucle ne redémarrera que quand l'utilisateur cliquera sur le bouton.
+            return;
         }
 
         // Appel de la frame suivante
@@ -419,7 +462,59 @@ class Game {
     }
 
 
+// Dans src/Game/Game.js
 
+    showWinModal() {
+        const overlay = document.createElement('div');
+        // ... (garder le même style d'overlay que précédemment) ...
+        Object.assign(overlay.style, {
+            position: 'fixed', top: '0', left: '0', width: '100%', height: '100%',
+            backgroundColor: 'rgba(0, 0, 0, 0.85)', display: 'flex',
+            justifyContent: 'center', alignItems: 'center', zIndex: '10000'
+        });
+
+        const content = document.createElement('div');
+        // ... (garder le même style de contenu) ...
+        Object.assign(content.style, {
+            textAlign: 'center', padding: '40px', border: '3px solid #00ffcc',
+            borderRadius: '15px', backgroundColor: '#111', color: 'white'
+        });
+
+
+        const isLastLevel = this.state.levels >= this.levels.data.length - 1;
+
+        if (isLastLevel) {
+            content.innerHTML = `
+            <h1 style="color: #ffcc00; margin: 0; font-size: 40px;">FÉLICITATIONS !</h1>
+            <p style="margin: 20px 0;">Tu as terminé tous les niveaux du jeu !</p>
+        `;
+
+            const btnRestart = document.createElement('button');
+            btnRestart.innerText = "RECOMMENCER AU DÉBUT";
+            // ... style du bouton ...
+            btnRestart.onclick = () => location.reload();
+            content.appendChild(btnRestart);
+        } else {
+            content.innerHTML = `
+            <h1 style="color: #00ffcc; margin: 0; font-size: 40px;">NIVEAU COMPLÉTÉ !</h1>
+            <p style="margin: 20px 0;">Prêt pour la suite ?</p>
+        `;
+
+            const btnNext = document.createElement('button');
+            btnNext.innerText = "NIVEAU SUIVANT";
+            // ... style du bouton ...
+            btnNext.onclick = () => {
+                document.body.removeChild(overlay);
+                this.state.levels++;
+                this.initGameObject();
+                requestAnimationFrame(this.loop.bind(this));
+            };
+            content.appendChild(btnNext);
+        }
+
+        overlay.appendChild(content);
+        document.body.appendChild(overlay);
+    }
 // --- Ajoute cette méthode dans ton objet ou ta classe ---
 showDeathModal() {
     // 1. Création du conteneur (Overlay)
