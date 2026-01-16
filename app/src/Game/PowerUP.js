@@ -5,24 +5,33 @@ export default class PowerUp extends MovingObject {
     animationIndex = 0;
     previousKeyframeStamp;
     frameRate = 12; // Vitesse de l'animation
+    powerTypeIndex
 
-    constructor(image, width, height, speed) {
-        // 90 degrés pour tomber vers le bas dans ton système
+    constructor(image, width, height, speed, typeIndex) {
         super(image, width, height, -90, speed);
+        this.powerTypeIndex = typeIndex;
     }
 
+
     draw() {
-        // Calcul de la frame à dessiner
+        const sourceX = this.powerTypeIndex * 32;
         const sourceY = this.animationIndex * this.size.height;
+        // console.log(sourceX, sourceY);
 
         theGame.ctx.drawImage(
             this.image,
-            0, sourceY,
-            this.size.width, this.size.height,
-            this.position.x, this.position.y,
-            this.size.width, this.size.height
+            sourceX,
+            sourceY,
+            32,
+            this.size.height,   // hauteur de la frame source
+            this.position.x,
+            this.position.y,
+            this.size.width,    // largeur affichée
+            this.size.height    // hauteur affichée
         );
     }
+
+
 
     updateAnimation() {
         if (!this.previousKeyframeStamp) {

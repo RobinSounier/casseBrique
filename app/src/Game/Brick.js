@@ -19,10 +19,13 @@ export default class Brick extends GameObject
         let sourceX, sourceY;
 
         if (this.type === -1) {
-            sourceX = 0;
+            sourceX = ((this.size.width * this.type * -1) - this.size.width)
+            sourceY = 0;
+        }else if (this.type === -2) {
+            sourceX = ((this.size.width * this.type * -1) - this.size.width)
             sourceY = 0;
         } else {
-            sourceX = (this.size.width * this.type) - this.size.width + 50;
+            sourceX = (this.size.width * this.type) - this.size.width + 100;
             sourceY = (this.size.height * this.strength) - this.size.height;
         }
 

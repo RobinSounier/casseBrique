@@ -9,7 +9,7 @@ import paddleImgSrc from '../assets/img/paddle.png';
 import brickImgSrc from '../assets/img/brick.png';
 import edgeImgSrc from '../assets/img/edge.webp';
 import powerImgSrc from '../assets/img/power.png';
-import powerPaddleImgSrc from '../assets/img/powerPaddle.png';
+
 import Ball from "./Ball";
 import GameObject from "./GameObject";
 import CollisionType from "./dataType/CollisionType";
@@ -44,12 +44,16 @@ class Game {
         // entrée utilisateur
         userInput: {
             paddleLeft: false,
-            paddleRight: false
+            paddleRight: false,
+            space: false
         },
         bricks: [],
         levels: 0,
         score: 0,
-        powers: []
+        powers: [],
+        piercingBall : false,
+        stickyBall: false,
+        life : 3
     };
 
     config = {
@@ -85,7 +89,6 @@ class Game {
     }
 
     start() {
-        console.log('Jeu démarré ...');
         //initialisation de l'interface html
         this.initHtmlUI();
         //Initilisation des images
@@ -148,19 +151,24 @@ class Game {
         this.images.power = imgPower;
 
 
-        const imgPowerPaddle = new Image();
-        imgPowerPaddle.src = powerPaddleImgSrc;
-        this.images.powerPaddle = imgPowerPaddle;
+
 
 
     }
 
     // Mise en place des object du jeu sur la scene
-    initGameObject() {
+    initGameObject(newLevel = false) {
         //on renitialise le state
-        this.state.balls = [];
+        if(newLevel) {
+            this.state.balls = [];
+            this.state.bricks = [];
+        }
         this.state.bouncingEdge = [];
-        this.state.bricks = [];
+        this.state.piercingBall = false;
+        this.state.stickyBall = false;
+        this.state.powers = []
+
+
         // Balle
         const ballDiameter = this.config.ball.radius * 2;
         const ball = new Ball(this.images.ball, ballDiameter, ballDiameter, this.config.ball.orientation, this.config.ball.speed);
@@ -290,7 +298,7 @@ class Game {
                 return true;
             }
 
-
+            // bonus de la multiball
             if (thePowers.tag === "multiball") {
 
 
@@ -314,7 +322,7 @@ class Game {
                 return false;
             }
 
-
+            //bonus du paddle
             if (thePowers.tag === "bigPaddle") {
                 // MODIFICATION ICI : on change la largeur dans l'objet size
                 this.state.paddle.size.width = 200;
@@ -326,6 +334,28 @@ class Game {
                 }, 10000);
 
                 return false;
+            }
+
+            // Bonus de la balle perçante
+            if (thePowers.tag === "piercingBall") {
+                console.log("balle percante");
+
+                // Activer l'effet
+                this.state.piercingBall = true;
+
+                // Gérer le timer pour annuler l'effet après 10 secondes (10000ms)
+                if (this.piercingTimeout) clearTimeout(this.piercingTimeout);
+
+                this.piercingTimeout = setTimeout(() => {
+                    this.state.piercingBall = false;
+                    console.log("Fin du bonus balle percante");
+                }, 10000);
+
+                return false; // On consomme le bonus (supprime l'objet PowerUp)
+            }
+
+            if (thePowers.tag === "stickyBall") {
+                this.state.stickyBall = true;
             }
 
 
@@ -385,11 +415,18 @@ class Game {
                         return;
 
                     case CollisionType.HORIZONTAL:
-                        theBall.reverseVelocityX();
+                        // On rebondit si on n'est PAS en mode piercing
+                        if (!this.state.piercingBall || theBrick.type === -1 || theBrick.type === -2) {
+                            theBall.reverseVelocityX();
+                        }
+
                         break;
 
                     case CollisionType.VERTICAL:
-                        theBall.reverseVelocityY();
+                        if (!this.state.piercingBall || theBrick.type === -1 || theBrick.type === -22) {
+                            theBall.reverseVelocityY();
+                        }
+
                         break;
 
                     default:
@@ -405,22 +442,42 @@ class Game {
                     if (theBrick.strength === 0) {
                         this.state.score++;
                         this.elScore.textContent = `Score : ${this.state.score}`;
+                        this.elScore.style.fontSize = "20px";
+                        this.elScore.style.marginTop = "20px";
+
                     }
 
-                    if (Math.random() < 0.2) {
-                        const power = new PowerUp(this.images.power, 32, 32, 2);
+                    const rand = Math.random(); // Génère un nombre entre 0 et 1
+
+                    if (rand < 0.075) {
+
+                        const power = new PowerUp(this.images.power, 32, 32, 2, 0);
                         power.setPosition(theBrick.position.x + 10, theBrick.position.y);
-                        power.tag = "multiball"
+                        power.tag = "multiball";
                         this.state.powers.push(power);
 
+                    } else if (rand < 0.15) {
+
+                        const power1 = new PowerUp(this.images.power, 32, 32, 2, 1);
+                        power1.setPosition(theBrick.position.x + 10, theBrick.position.y);
+                        power1.tag = "bigPaddle";
+                        this.state.powers.push(power1);
+
+                    } else if (rand < 0.225) {
+
+                        const power2 = new PowerUp(this.images.power, 32, 32, 2, 2);
+                        power2.setPosition(theBrick.position.x + 10, theBrick.position.y);
+                        power2.tag = "piercingBall";
+                        this.state.powers.push(power2);
+
+                    } else if (rand < 0.3) {
+
+                        const power3 = new PowerUp(this.images.power, 32, 32, 2, 3);
+                        power3.setPosition(theBrick.position.x + 10, theBrick.position.y);
+                        power3.tag = "stickyBall";
+                        this.state.powers.push(power3);
                     }
 
-                    if (Math.random() < 0.3) {
-                        const power1 = new PowerUp(this.images.powerPaddle, 32, 32, 2);
-                        power1.setPosition(theBrick.position.x + 10, theBrick.position.y);
-                        power1.tag = "bigPaddle"
-                        this.state.powers.push(power1);
-                    }
                 }
 
             })
@@ -431,9 +488,22 @@ class Game {
             switch( paddleCollisionType ) {
                 case CollisionType.HORIZONTAL:
                     theBall.reverseVelocityX();
+                    if (this.state.stickyBall) {
+                        theBall.speed = 0;
+                        theBall.position.x = this.state.paddle.position.x + 50
+                    }
                     break;
 
                 case CollisionType.VERTICAL:
+                    if (this.state.stickyBall) {
+                        theBall.speed = 0;
+                        theBall.position.x = this.state.paddle.position.x + 40
+
+                        if (this.state.userInput.space) {
+                            theBall.speed = this.config.ball.speed
+                            this.state.stickyBall = false
+                        }
+                    }
                     // Altération de l'angle en fonction du movement du paddle
                     let alteration = 0;
                     if( this.state.userInput.paddleRight )
@@ -534,25 +604,24 @@ class Game {
         // Cycle 4
         this.renderObjects();
 
-        console.log(this.state.score)
-
         // S'il n'y a aucune balle restante, on a perdu
         // S'il n'y a aucune balle restante, on a perdu
         if (this.state.balls.length <= 0) {
-            this.showDeathModal();
-            return; // Stop la boucle loop()
+            this.state.life --
+            this.initGameObject();
+            requestAnimationFrame(this.loop.bind(this));
+            return;
+        }
+        if (this.state.life === 0) {
+            this.showDeathModal()
         }
         const bricksWin = this.state.bricks.filter(theBrick => theBrick.strength > 0 );
 
         if (bricksWin <= 0) {
-            // On nettoie le canvas avant d'afficher la modale
             this.ctx.clearRect(0, 0, this.config.canvasSize.width, this.config.canvasSize.height);
 
-            // On affiche la modale de victoire
             this.showWinModal();
 
-            // TRÈS IMPORTANT : On stoppe la boucle actuelle ici.
-            // La boucle ne redémarrera que quand l'utilisateur cliquera sur le bouton.
             return;
         }
 
@@ -605,7 +674,7 @@ class Game {
             btnNext.onclick = () => {
                 document.body.removeChild(overlay);
                 this.state.levels++;
-                this.initGameObject();
+                this.initGameObject(true);
                 requestAnimationFrame(this.loop.bind(this));
             };
             content.appendChild(btnNext);
@@ -711,6 +780,11 @@ showDeathModal() {
                 this.state.userInput.paddleRight = false;
             }
             this.state.userInput.paddleLeft = isActive;
+        }
+
+        if (evt.key === ' ' || evt.key === 'Spacebar') {
+            evt.preventDefault();
+            this.state.userInput.space = isActive;
         }
     }
 
