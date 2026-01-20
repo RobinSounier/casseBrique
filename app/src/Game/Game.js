@@ -9,6 +9,7 @@ import paddleImgSrc from '../assets/img/paddle.png';
 import brickImgSrc from '../assets/img/brick.png';
 import edgeImgSrc from '../assets/img/edge.webp';
 import powerImgSrc from '../assets/img/power.png';
+import laserImgSrc from '../assets/img/laser.png';
 
 import Ball from "./Ball";
 import GameObject from "./GameObject";
@@ -16,6 +17,7 @@ import CollisionType from "./dataType/CollisionType";
 import Paddle from "./Paddle";
 import Brick from "./Brick";
 import PowerUp from "./PowerUP";
+import {Laser} from "./laser";
 
 class Game {
     // Contexte de dessin du canvas
@@ -30,6 +32,7 @@ class Game {
         edge: null,
         power: null,
         powerPaddle: null,
+        laser: null,
     };
     // State (un object qui decrit l'etat actuel du jeu, les balles, les brique encore presente etc ..)
     state = {
@@ -38,7 +41,6 @@ class Game {
         levels: 0, // AJOUT: niveau actuel
         score: 0, // AJOUT: score global
         gameStarted: false, // AJOUT: indique si la partie a commencé
-        // On crée un objet par joueur pour stocker leur progression propre
         players: {
             1: { score: 0, life: 3, bricks: [], level: 0 },
             2: { score: 0, life: 3, bricks: [], level: 0 }
@@ -47,12 +49,14 @@ class Game {
         balls: [],
         bricks: [],
         powers: [],
+        laser: [],
         deathEdge: [],
         bouncingEdge: [],
         paddle: null,
         userInput: { paddleLeft: false, paddleRight: false, space: false },
         piercingBall: false,
-        stickyBall: false
+        stickyBall: false,
+        laserCharges: 0 // NOUVEAU: nombre de charges laser disponibles
     };
 
     config = {
@@ -78,6 +82,7 @@ class Game {
 
     // Timestamp haute résolution de la boucle d'animation
     currentLoopStamp;
+    lastSpacePress = false; // NOUVEAU: pour détecter l'appui sur espace
 
     constructor(customConfig = {}, levelsConfig = []) {
         Object.assign(this.config, customConfig);
@@ -172,6 +177,10 @@ class Game {
         const imgPower = new Image();
         imgPower.src = powerImgSrc;
         this.images.power = imgPower;
+
+        const imgLaser = new Image();
+        imgLaser.src = laserImgSrc;
+        this.images.laser = imgLaser
     }
 
     updateUI() {
@@ -184,7 +193,7 @@ class Game {
         `;
         } else {
             const p = this.state.players[1];
-            this.elScore.textContent = `Score : ${this.state.score} | Vies : ${p.life}`;
+            this.elScore.textContent = `Score : ${this.state.score} | Vies : ${p.life} | Lasers : ${this.state.laserCharges}`;
         }
     }
 
@@ -195,29 +204,26 @@ class Game {
         this.state.powers = [];
         this.state.piercingBall = false;
         this.state.stickyBall = false;
-        this.state.gameStarted = false; // AJOUT: On attend que le joueur appuie sur espace
+        this.state.gameStarted = false;
+        this.state.laserCharges = 0;
 
-        // Récupération des données du joueur actuel
+
         const p = this.state.players[this.state.currentPlayer];
 
-        // 2. SYNCHRONISATION : On met à jour le score et les vies globales avec ceux du joueur actif
+
         this.state.score = p.score;
         this.state.life = p.life;
 
-        // 3. GESTION DES BRIQUES (Persistance par joueur)
         if (newLevel) {
-            // Cas : Nouveau niveau ou début de partie
             this.state.bricks = [];
             this.loadBricks(this.levels.data[this.state.levels]);
 
-            // Si on est en mode multi, on s'assure que le joueur 2 commencera avec le même état
             if (this.state.mode === 'multi') {
                 this.state.players[1].bricks = [];
                 this.state.players[2].bricks = [];
             }
         }
         else if (this.state.mode === 'multi' && p.bricks && p.bricks.length > 0) {
-            // Cas : Changement de tour en multi.
             this.state.bricks = p.bricks;
         }
 
@@ -244,14 +250,14 @@ class Game {
         this.state.paddle = new Paddle(this.images.paddle, this.config.paddleSize.width, this.config.paddleSize.height, 0, 0);
         this.state.paddle.setPosition(350, 560);
 
-        // 6. Initialisation de la balle (elle reste immobile jusqu'à l'appui sur espace)
+
         const ballDiameter = this.config.ball.radius * 2;
         const ball = new Ball(
             this.images.ball,
             ballDiameter,
             ballDiameter,
             this.config.ball.orientation,
-            0 // MODIFICATION: vitesse à 0 au départ
+            0
         );
         ball.setPosition(this.config.ball.position.x, this.config.ball.position.y);
         ball.isCircular = true;
@@ -260,7 +266,7 @@ class Game {
         this.updateUI();
     }
 
-    //création des brick
+
     loadBricks(levelArray) {
         for(let line = 0; line < levelArray.length; line++){
             for (let col = 0; col < 16; col++) {
@@ -278,6 +284,33 @@ class Game {
     }
 
     checkUserInput() {
+        // NOUVEAU: Détection du tir laser
+        if (this.state.userInput.space && !this.lastSpacePress && this.state.laserCharges > 0) {
+            // Tirer 3 lasers
+            const paddleCenter = this.state.paddle.position.x + (this.state.paddle.size.width / 2);
+
+            // Laser gauche
+            const laserLeft = new Laser(this.images.laser, 10, 30, 90, 7);
+            laserLeft.setPosition(paddleCenter - 30, this.state.paddle.position.y - 31);
+            this.state.laser.push(laserLeft);
+
+            // Laser centre
+            const laserCenter = new Laser(this.images.laser, 10, 30, 90, 7);
+            laserCenter.setPosition(paddleCenter - 5, this.state.paddle.position.y - 31);
+            this.state.laser.push(laserCenter);
+
+            // Laser droite
+            const laserRight = new Laser(this.images.laser, 10, 30, 90, 7);
+            laserRight.setPosition(paddleCenter + 20, this.state.paddle.position.y - 31);
+            this.state.laser.push(laserRight);
+
+            this.state.laserCharges--;
+            this.updateUI();
+        }
+
+        // Mise à jour de l'état précédent de la touche espace
+        this.lastSpacePress = this.state.userInput.space;
+
         // Vérifier si on doit lancer la partie
         if (!this.state.gameStarted && this.state.userInput.space) {
             this.state.gameStarted = true;
@@ -387,6 +420,13 @@ class Game {
                 return false;
             }
 
+            // MODIFIÉ: Le bonus laser ajoute 3 charges
+            if (thePowers.tag === "laser") {
+                this.state.laserCharges += 3;
+                this.updateUI();
+                return false;
+            }
+
             return false;
         });
 
@@ -452,33 +492,39 @@ class Game {
 
                     if (theBrick.strength === 0) {
                         this.state.score++;
-                        this.elScore.textContent = `Score : ${this.state.score}`;
-                        this.elScore.style.fontSize = "20px";
-                        this.elScore.style.marginTop = "20px";
+                        this.updateUI();
                     }
 
-                    const rand = Math.random();
+                    // 30% de chance d'avoir un bonus
+                    if (Math.random() < 0.3) {
+                        const bonusType = Math.floor(Math.random() * 5); // 0 à 4 (5 bonus équiprobables)
+                        let power;
 
-                    if (rand < 0.075) {
-                        const power = new PowerUp(this.images.power, 32, 32, 2, 0);
+                        switch(bonusType) {
+                            case 0: // multiball
+                                power = new PowerUp(this.images.power, 32, 32, 2, 0);
+                                power.tag = "multiball";
+                                break;
+                            case 1: // bigPaddle
+                                power = new PowerUp(this.images.power, 32, 32, 2, 1);
+                                power.tag = "bigPaddle";
+                                break;
+                            case 2: // piercingBall
+                                power = new PowerUp(this.images.power, 32, 32, 2, 2);
+                                power.tag = "piercingBall";
+                                break;
+                            case 3: // stickyBall
+                                power = new PowerUp(this.images.power, 32, 32, 2, 3);
+                                power.tag = "stickyBall";
+                                break;
+                            case 4: // laser
+                                power = new PowerUp(this.images.power, 32, 32, 2, 4);
+                                power.tag = "laser";
+                                break;
+                        }
+
                         power.setPosition(theBrick.position.x + 10, theBrick.position.y);
-                        power.tag = "multiball";
                         this.state.powers.push(power);
-                    } else if (rand < 0.15) {
-                        const power1 = new PowerUp(this.images.power, 32, 32, 2, 1);
-                        power1.setPosition(theBrick.position.x + 10, theBrick.position.y);
-                        power1.tag = "bigPaddle";
-                        this.state.powers.push(power1);
-                    } else if (rand < 0.225) {
-                        const power2 = new PowerUp(this.images.power, 32, 32, 2, 2);
-                        power2.setPosition(theBrick.position.x + 10, theBrick.position.y);
-                        power2.tag = "piercingBall";
-                        this.state.powers.push(power2);
-                    } else if (rand < 0.3) {
-                        const power3 = new PowerUp(this.images.power, 32, 32, 2, 3);
-                        power3.setPosition(theBrick.position.x + 10, theBrick.position.y);
-                        power3.tag = "stickyBall";
-                        this.state.powers.push(power3);
                     }
                 }
             })
@@ -526,6 +572,66 @@ class Game {
             }
         });
 
+        this.state.laser = this.state.laser.filter((laser) => {
+            let hasHit = false;
+
+            for (let i = 0; i < this.state.bricks.length; i++) {
+                const theBrick = this.state.bricks[i];
+                const collisionType = laser.getCollisionType(theBrick);
+
+                if (collisionType !== CollisionType.NONE) {
+                    // Le laser a touché une brique
+                    hasHit = true;
+
+                    // Logique de dégâts sur la brique
+                    if (theBrick.type !== -1) {
+                        theBrick.strength--;
+
+                        if (theBrick.strength === 0) {
+                            this.state.score++;
+                            this.updateUI();
+                        }
+
+                        // 30% de chance d'avoir un bonus
+                        if (Math.random() < 0.3) {
+                            const bonusType = Math.floor(Math.random() * 5); // 0 à 4 (5 bonus équiprobables)
+                            let power;
+
+                            switch(bonusType) {
+                                case 0: // multiball
+                                    power = new PowerUp(this.images.power, 32, 32, 2, 0);
+                                    power.tag = "multiball";
+                                    break;
+                                case 1: // bigPaddle
+                                    power = new PowerUp(this.images.power, 32, 32, 2, 1);
+                                    power.tag = "bigPaddle";
+                                    break;
+                                case 2: // piercingBall
+                                    power = new PowerUp(this.images.power, 32, 32, 2, 2);
+                                    power.tag = "piercingBall";
+                                    break;
+                                case 3: // stickyBall
+                                    power = new PowerUp(this.images.power, 32, 32, 2, 3);
+                                    power.tag = "stickyBall";
+                                    break;
+                                case 4: // laser
+                                    power = new PowerUp(this.images.power, 32, 32, 2, 4);
+                                    power.tag = "laser";
+                                    break;
+                            }
+
+                            power.setPosition(theBrick.position.x + 10, theBrick.position.y);
+                            this.state.powers.push(power);
+                        }
+                    }
+
+                    break;
+                }
+            }
+
+            return !hasHit;
+        });
+
         this.state.balls = savedBalls;
     }
 
@@ -540,6 +646,10 @@ class Game {
             p.update();
             p.updateAnimation();
         });
+
+        this.state.laser.forEach(laser => {
+            laser.update();
+        })
 
         //brick
         this.state.bricks = this.state.bricks.filter(theBrick => theBrick.strength !== 0)
@@ -576,6 +686,10 @@ class Game {
         });
 
         this.state.powers.forEach(p => p.draw());
+
+        this.state.laser.forEach(laser => {
+            laser.draw();
+        })
 
         // AJOUT: Afficher un message si la partie n'a pas commencé
         if (!this.state.gameStarted) {
@@ -615,24 +729,22 @@ class Game {
             p.life--;
 
             if (this.state.mode === 'multi') {
-                // Sauvegarder la progression du joueur actuel
                 p.bricks = [...this.state.bricks];
                 p.score = this.state.score;
 
-                // Tenter de passer à l'autre joueur
                 const nextPlayer = this.state.currentPlayer === 1 ? 2 : 1;
 
                 if (this.state.players[nextPlayer].life > 0) {
                     this.state.currentPlayer = nextPlayer;
                 }
 
-                // Si les deux n'ont plus de vies, Game Over
+
                 if (this.state.players[1].life <= 0 && this.state.players[2].life <= 0) {
                     this.showResultModal();
                     return;
                 }
             } else {
-                // Mode solo
+
                 if (p.life <= 0) {
                     this.showDeathModal();
                     return;
