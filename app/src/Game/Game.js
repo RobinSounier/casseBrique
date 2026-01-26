@@ -37,10 +37,11 @@ class Game {
     // State (un object qui decrit l'etat actuel du jeu, les balles, les brique encore presente etc ..)
     state = {
         mode: null, // 'single' ou 'multi'
+        difficulty: 'normal', // NOUVEAU: niveau de difficulté
         currentPlayer: 1,
-        levels: 0, // AJOUT: niveau actuel
-        score: 0, // AJOUT: score global
-        gameStarted: false, // AJOUT: indique si la partie a commencé
+        levels: 0,
+        score: 0,
+        gameStarted: false,
         players: {
             1: { score: 0, life: 3, bricks: [], level: 0 },
             2: { score: 0, life: 3, bricks: [], level: 0 }
@@ -56,7 +57,7 @@ class Game {
         userInput: { paddleLeft: false, paddleRight: false, space: false },
         piercingBall: false,
         stickyBall: false,
-        laserCharges: 0 // NOUVEAU: nombre de charges laser disponibles
+        laserCharges: 0
     };
 
     config = {
@@ -72,21 +73,116 @@ class Game {
                 x: 400,
                 y: 300
             },
-            angleAlteration: 35
+            angleAlteration: 35,
+            maxSpeed: 12,
+            minSpeed: 3,
+            speedIncrement: 0.5
         },
         paddleSize: {
             width: 200,
             height: 20
+        },
+        paddle: {
+            speed: 7,
+            bigPaddleWidth: 200,
+            smallPaddleWidth: 60,
+            bigPaddleDuration: 10000,
+            color: "#ff007f"
+        },
+        powerUps: {
+            dropChance: 0.3,
+            fallSpeed: 2,
+            piercingDuration: 10000,
+            laserChargesPerPickup: 3
+        },
+        laser: {
+            speed: 7,
+            width: 10,
+            height: 30,
+            count: 3,
+            spreadDistance: 25
+        },
+        bricks: {
+            width: 50,
+            height: 25,
+            startX: 20,
+            startY: 20,
+            columns: 16
+        },
+        edges: {
+            thickness: 20
+        },
+        lives: {
+            default: 3,
+            max: 5
+        },
+        scoring: {
+            brickDestroyed: 1,
+            levelBonus: 100,
+            lifeBonus: 500
+        },
+        difficulty: {
+            easy: {
+                ballSpeed: 4,
+                lives: 5,
+                powerUpChance: 0.4
+            },
+            normal: {
+                ballSpeed: 6,
+                lives: 3,
+                powerUpChance: 0.3
+            },
+            hard: {
+                ballSpeed: 8,
+                lives: 2,
+                powerUpChance: 0.2
+            }
+        },
+        colors: {
+            player1: "#ff007f",
+            player2: "#00ffff",
+            warning: "#ffcc00",
+            success: "#00ffcc",
+            danger: "#ff0044"
+        },
+        audio: {
+            enabled: true,
+            volume: 0.7
         }
     }
 
     // Timestamp haute résolution de la boucle d'animation
     currentLoopStamp;
-    lastSpacePress = false; // NOUVEAU: pour détecter l'appui sur espace
+    lastSpacePress = false;
 
     constructor(customConfig = {}, levelsConfig = []) {
-        Object.assign(this.config, customConfig);
-        this.levels = levelsConfig
+        // Fusion profonde des configurations
+        this.deepMerge(this.config, customConfig);
+        this.levels = levelsConfig;
+    }
+
+    // NOUVEAU: Méthode pour fusion profonde des objets
+    deepMerge(target, source) {
+        for (const key in source) {
+            if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+                if (!target[key]) target[key] = {};
+                this.deepMerge(target[key], source[key]);
+            } else {
+                target[key] = source[key];
+            }
+        }
+        return target;
+    }
+
+    // NOUVEAU: Appliquer la difficulté sélectionnée
+    applyDifficulty() {
+        const diff = this.config.difficulty[this.state.difficulty];
+        if (diff) {
+            this.config.ball.speed = diff.ballSpeed;
+            this.config.powerUps.dropChance = diff.powerUpChance;
+            this.state.players[1].life = diff.lives;
+            this.state.players[2].life = diff.lives;
+        }
     }
 
     start() {
@@ -104,15 +200,35 @@ class Game {
         });
 
         overlay.innerHTML = `
-        <h1 style="color: #fff; text-shadow: 0 0 20px #ff007f; margin-bottom: 50px;">CHOISIR MODE</h1>
-        <button id="btnSingle" style="padding: 20px 40px; margin: 10px; font-family: 'Syncopate'; cursor: pointer; background: #ff007f; color: white; border: none; border-radius: 5px;">1 JOUEUR</button>
-        <button id="btnMulti" style="padding: 20px 40px; margin: 10px; font-family: 'Syncopate'; cursor: pointer; background: #00ffff; color: #0d0211; border: none; border-radius: 5px;">2 JOUEURS (VERSUS)</button>
+        <h1 style="color: #fff; text-shadow: 0 0 20px ${this.config.colors.player1}; margin-bottom: 30px;">GAME.IO</h1>
+        
+        <div style="margin-bottom: 30px;">
+            <h3 style="color: #fff; margin-bottom: 15px;">DIFFICULTÉ</h3>
+            <select id="difficultySelect" style="padding: 10px 20px; font-family: 'Syncopate'; font-size: 14px; cursor: pointer; background: #222; color: white; border: 2px solid ${this.config.colors.warning}; border-radius: 5px;">
+                <option value="easy">FACILE</option>
+                <option value="normal" selected>NORMAL</option>
+                <option value="hard">DIFFICILE</option>
+            </select>
+        </div>
+        
+        <h3 style="color: #fff; margin-bottom: 15px;">MODE DE JEU</h3>
+        <button id="btnSingle" style="padding: 20px 40px; margin: 10px; font-family: 'Syncopate'; cursor: pointer; background: ${this.config.colors.player1}; color: white; border: none; border-radius: 5px; transition: transform 0.2s;">1 JOUEUR</button>
+        <button id="btnMulti" style="padding: 20px 40px; margin: 10px; font-family: 'Syncopate'; cursor: pointer; background: ${this.config.colors.player2}; color: #0d0211; border: none; border-radius: 5px; transition: transform 0.2s;">2 JOUEURS (VERSUS)</button>
     `;
 
         document.body.appendChild(overlay);
 
+        // Effets hover sur les boutons
+        const buttons = overlay.querySelectorAll('button');
+        buttons.forEach(btn => {
+            btn.onmouseover = () => btn.style.transform = 'scale(1.1)';
+            btn.onmouseout = () => btn.style.transform = 'scale(1)';
+        });
+
         overlay.querySelector('#btnSingle').onclick = () => {
             this.state.mode = 'single';
+            this.state.difficulty = overlay.querySelector('#difficultySelect').value;
+            this.applyDifficulty();
             document.body.removeChild(overlay);
             this.initGameObject(true);
             requestAnimationFrame(this.loop.bind(this));
@@ -120,6 +236,8 @@ class Game {
 
         overlay.querySelector('#btnMulti').onclick = () => {
             this.state.mode = 'multi';
+            this.state.difficulty = overlay.querySelector('#difficultySelect').value;
+            this.applyDifficulty();
             document.body.removeChild(overlay);
             this.initGameObject(true);
             requestAnimationFrame(this.loop.bind(this));
@@ -188,12 +306,13 @@ class Game {
             const p1 = this.state.players[1];
             const p2 = this.state.players[2];
             this.elScore.innerHTML = `
-            <span style="color: ${this.state.currentPlayer === 1 ? '#ff007f' : '#fff'}">P1: ${p1.score} (${p1.life}♥)</span> | 
-            <span style="color: ${this.state.currentPlayer === 2 ? '#00ffff' : '#fff'}">P2: ${p2.score} (${p2.life}♥)</span>
+            <span style="color: ${this.state.currentPlayer === 1 ? this.config.colors.player1 : '#fff'}">P1: ${p1.score} (${p1.life}♥)</span> | 
+            <span style="color: ${this.state.currentPlayer === 2 ? this.config.colors.player2 : '#fff'}">P2: ${p2.score} (${p2.life}♥)</span>
+            | <span style="color: ${this.config.colors.warning}">Difficulté: ${this.state.difficulty.toUpperCase()}</span>
         `;
         } else {
             const p = this.state.players[1];
-            this.elScore.textContent = `Score : ${this.state.score} | Vies : ${p.life} | Lasers : ${this.state.laserCharges}`;
+            this.elScore.textContent = `Score : ${this.state.score} | Vies : ${p.life} | Lasers : ${this.state.laserCharges} | Difficulté : ${this.state.difficulty.toUpperCase()}`;
         }
     }
 
@@ -202,14 +321,13 @@ class Game {
         // 1. Réinitialisation des éléments mobiles et effets pour le début du tour
         this.state.balls = [];
         this.state.powers = [];
+        this.state.laser = [];
         this.state.piercingBall = false;
         this.state.stickyBall = false;
         this.state.gameStarted = false;
         this.state.laserCharges = 0;
 
-
         const p = this.state.players[this.state.currentPlayer];
-
 
         this.state.score = p.score;
         this.state.life = p.life;
@@ -229,27 +347,37 @@ class Game {
 
         // 4. Initialisation des bords
         this.state.bouncingEdge = [];
-        const EdgeTop = new GameObject(this.images.edge, this.config.canvasSize.width, 20);
+        const edgeThickness = this.config.edges.thickness;
+
+        const EdgeTop = new GameObject(this.images.edge, this.config.canvasSize.width, edgeThickness);
         EdgeTop.setPosition(0, 0);
 
-        const EdgeRight = new GameObject(this.images.edge, 20, this.config.canvasSize.height + 10);
-        EdgeRight.setPosition(this.config.canvasSize.width - 20, 20);
+        const EdgeRight = new GameObject(this.images.edge, edgeThickness, this.config.canvasSize.height + 10);
+        EdgeRight.setPosition(this.config.canvasSize.width - edgeThickness, edgeThickness);
         EdgeRight.tag = "RightEdge";
 
-        const EdgeLeft = new GameObject(this.images.edge, 20, this.config.canvasSize.height + 10);
-        EdgeLeft.setPosition(0, 20);
+        const EdgeLeft = new GameObject(this.images.edge, edgeThickness, this.config.canvasSize.height + 10);
+        EdgeLeft.setPosition(0, edgeThickness);
         EdgeLeft.tag = "LeftEdge";
 
         this.state.bouncingEdge.push(EdgeLeft, EdgeRight, EdgeTop);
 
-        const deathEdge = new GameObject(this.images.edge, this.config.canvasSize.width, 20);
+        const deathEdge = new GameObject(this.images.edge, this.config.canvasSize.width, edgeThickness);
         deathEdge.setPosition(0, this.config.canvasSize.height + 30);
         this.state.deathEdge = deathEdge;
 
         // 5. Initialisation du paddle
-        this.state.paddle = new Paddle(this.images.paddle, this.config.paddleSize.width, this.config.paddleSize.height, 0, 0);
-        this.state.paddle.setPosition(350, 560);
-
+        this.state.paddle = new Paddle(
+            this.images.paddle,
+            this.config.paddleSize.width,
+            this.config.paddleSize.height,
+            0,
+            0
+        );
+        this.state.paddle.setPosition(
+            (this.config.canvasSize.width - this.config.paddleSize.width) / 2,
+            this.config.canvasSize.height - 60
+        );
 
         const ballDiameter = this.config.ball.radius * 2;
         const ball = new Ball(
@@ -257,7 +385,7 @@ class Game {
             ballDiameter,
             ballDiameter,
             this.config.ball.orientation,
-            0
+            0 // Vitesse à 0 au départ
         );
         ball.setPosition(this.config.ball.position.x, this.config.ball.position.y);
         ball.isCircular = true;
@@ -266,17 +394,18 @@ class Game {
         this.updateUI();
     }
 
-
     loadBricks(levelArray) {
+        const brickConfig = this.config.bricks;
+
         for(let line = 0; line < levelArray.length; line++){
-            for (let col = 0; col < 16; col++) {
+            for (let col = 0; col < brickConfig.columns; col++) {
                 let brickType = levelArray[line][col]
                 if (brickType === 0) continue;
 
-                const brick = new Brick(this.images.brick, 50, 25, brickType)
+                const brick = new Brick(this.images.brick, brickConfig.width, brickConfig.height, brickType)
                 brick.setPosition(
-                    20 + (50 * col),
-                    20 + (25 * line)
+                    brickConfig.startX + (brickConfig.width * col),
+                    brickConfig.startY + (brickConfig.height * line)
                 );
                 this.state.bricks.push(brick)
             }
@@ -284,25 +413,27 @@ class Game {
     }
 
     checkUserInput() {
-        // NOUVEAU: Détection du tir laser
+        // Détection du tir laser
         if (this.state.userInput.space && !this.lastSpacePress && this.state.laserCharges > 0) {
-            // Tirer 3 lasers
             const paddleCenter = this.state.paddle.position.x + (this.state.paddle.size.width / 2);
+            const laserConfig = this.config.laser;
 
-            // Laser gauche
-            const laserLeft = new Laser(this.images.laser, 10, 30, 90, 7);
-            laserLeft.setPosition(paddleCenter - 30, this.state.paddle.position.y - 31);
-            this.state.laser.push(laserLeft);
-
-            // Laser centre
-            const laserCenter = new Laser(this.images.laser, 10, 30, 90, 7);
-            laserCenter.setPosition(paddleCenter - 5, this.state.paddle.position.y - 31);
-            this.state.laser.push(laserCenter);
-
-            // Laser droite
-            const laserRight = new Laser(this.images.laser, 10, 30, 90, 7);
-            laserRight.setPosition(paddleCenter + 20, this.state.paddle.position.y - 31);
-            this.state.laser.push(laserRight);
+            // Créer les lasers selon la config
+            for (let i = 0; i < laserConfig.count; i++) {
+                const offset = (i - (laserConfig.count - 1) / 2) * laserConfig.spreadDistance;
+                const laser = new Laser(
+                    this.images.laser,
+                    laserConfig.width,
+                    laserConfig.height,
+                    90,
+                    laserConfig.speed
+                );
+                laser.setPosition(
+                    paddleCenter + offset - (laserConfig.width / 2),
+                    this.state.paddle.position.y - laserConfig.height - 1
+                );
+                this.state.laser.push(laser);
+            }
 
             this.state.laserCharges--;
             this.updateUI();
@@ -322,15 +453,17 @@ class Game {
             });
         }
 
+        const paddleSpeed = this.config.paddle.speed;
+
         // Droite
         if(this.state.userInput.paddleRight) {
             this.state.paddle.orientation = 0;
-            this.state.paddle.speed = 7;
+            this.state.paddle.speed = paddleSpeed;
         }
         // Gauche
         if(this.state.userInput.paddleLeft) {
             this.state.paddle.orientation = 180;
-            this.state.paddle.speed = 7;
+            this.state.paddle.speed = paddleSpeed;
         }
         // Ni Droite Ni Gauche
         if(!this.state.userInput.paddleRight && !this.state.userInput.paddleLeft) {
@@ -392,12 +525,12 @@ class Game {
 
             //bonus du paddle
             if (thePowers.tag === "bigPaddle") {
-                this.state.paddle.size.width = 200;
+                this.state.paddle.size.width = this.config.paddle.bigPaddleWidth;
 
                 if (this.paddleTimeout) clearTimeout(this.paddleTimeout);
                 this.paddleTimeout = setTimeout(() => {
-                    this.state.paddle.size.width = 100;
-                }, 10000);
+                    this.state.paddle.size.width = this.config.paddleSize.width;
+                }, this.config.paddle.bigPaddleDuration);
 
                 return false;
             }
@@ -410,7 +543,7 @@ class Game {
 
                 this.piercingTimeout = setTimeout(() => {
                     this.state.piercingBall = false;
-                }, 10000);
+                }, this.config.powerUps.piercingDuration);
 
                 return false;
             }
@@ -420,9 +553,9 @@ class Game {
                 return false;
             }
 
-            // MODIFIÉ: Le bonus laser ajoute 3 charges
+            // Le bonus laser ajoute des charges selon la config
             if (thePowers.tag === "laser") {
-                this.state.laserCharges += 3;
+                this.state.laserCharges += this.config.powerUps.laserChargesPerPickup;
                 this.updateUI();
                 return false;
             }
@@ -486,45 +619,18 @@ class Game {
                         break;
                 }
 
-                // Disparition de la brique avec la récistance
+                // Disparition de la brique avec la résistance
                 if (theBrick.type !== -1) {
                     theBrick.strength--;
 
                     if (theBrick.strength === 0) {
-                        this.state.score++;
+                        this.state.score += this.config.scoring.brickDestroyed;
                         this.updateUI();
                     }
 
-                    // 30% de chance d'avoir un bonus
-                    if (Math.random() < 0.3) {
-                        const bonusType = Math.floor(Math.random() * 5); // 0 à 4 (5 bonus équiprobables)
-                        let power;
-
-                        switch(bonusType) {
-                            case 0: // multiball
-                                power = new PowerUp(this.images.power, 32, 32, 2, 0);
-                                power.tag = "multiball";
-                                break;
-                            case 1: // bigPaddle
-                                power = new PowerUp(this.images.power, 32, 32, 2, 1);
-                                power.tag = "bigPaddle";
-                                break;
-                            case 2: // piercingBall
-                                power = new PowerUp(this.images.power, 32, 32, 2, 2);
-                                power.tag = "piercingBall";
-                                break;
-                            case 3: // stickyBall
-                                power = new PowerUp(this.images.power, 32, 32, 2, 3);
-                                power.tag = "stickyBall";
-                                break;
-                            case 4: // laser
-                                power = new PowerUp(this.images.power, 32, 32, 2, 4);
-                                power.tag = "laser";
-                                break;
-                        }
-
-                        power.setPosition(theBrick.position.x + 10, theBrick.position.y);
-                        this.state.powers.push(power);
+                    // Chance d'avoir un bonus selon la config
+                    if (Math.random() < this.config.powerUps.dropChance) {
+                        this.spawnPowerUp(theBrick.position.x + 10, theBrick.position.y);
                     }
                 }
             })
@@ -565,6 +671,7 @@ class Game {
                     else if(theBall.orientation === 180)
                         theBall.orientation = 170;
 
+
                     break;
 
                 default:
@@ -574,6 +681,11 @@ class Game {
 
         this.state.laser = this.state.laser.filter((laser) => {
             let hasHit = false;
+
+            // Vérifier si le laser sort de l'écran
+            if (laser.position.y < 0) {
+                return false;
+            }
 
             for (let i = 0; i < this.state.bricks.length; i++) {
                 const theBrick = this.state.bricks[i];
@@ -588,40 +700,13 @@ class Game {
                         theBrick.strength--;
 
                         if (theBrick.strength === 0) {
-                            this.state.score++;
+                            this.state.score += this.config.scoring.brickDestroyed;
                             this.updateUI();
                         }
 
-                        // 30% de chance d'avoir un bonus
-                        if (Math.random() < 0.3) {
-                            const bonusType = Math.floor(Math.random() * 5); // 0 à 4 (5 bonus équiprobables)
-                            let power;
-
-                            switch(bonusType) {
-                                case 0: // multiball
-                                    power = new PowerUp(this.images.power, 32, 32, 2, 0);
-                                    power.tag = "multiball";
-                                    break;
-                                case 1: // bigPaddle
-                                    power = new PowerUp(this.images.power, 32, 32, 2, 1);
-                                    power.tag = "bigPaddle";
-                                    break;
-                                case 2: // piercingBall
-                                    power = new PowerUp(this.images.power, 32, 32, 2, 2);
-                                    power.tag = "piercingBall";
-                                    break;
-                                case 3: // stickyBall
-                                    power = new PowerUp(this.images.power, 32, 32, 2, 3);
-                                    power.tag = "stickyBall";
-                                    break;
-                                case 4: // laser
-                                    power = new PowerUp(this.images.power, 32, 32, 2, 4);
-                                    power.tag = "laser";
-                                    break;
-                            }
-
-                            power.setPosition(theBrick.position.x + 10, theBrick.position.y);
-                            this.state.powers.push(power);
+                        // Chance d'avoir un bonus selon la config
+                        if (Math.random() < this.config.powerUps.dropChance) {
+                            this.spawnPowerUp(theBrick.position.x + 10, theBrick.position.y);
                         }
                     }
 
@@ -633,6 +718,23 @@ class Game {
         });
 
         this.state.balls = savedBalls;
+    }
+
+    // NOUVEAU: Méthode centralisée pour spawn les power-ups
+    spawnPowerUp(x, y) {
+        const bonusTypes = ['multiball', 'bigPaddle', 'piercingBall', 'stickyBall', 'laser'];
+        const bonusType = Math.floor(Math.random() * bonusTypes.length);
+
+        const power = new PowerUp(
+            this.images.power,
+            32,
+            32,
+            this.config.powerUps.fallSpeed,
+            bonusType
+        );
+        power.tag = bonusTypes[bonusType];
+        power.setPosition(x, y);
+        this.state.powers.push(power);
     }
 
     // Cycle de vie: 3- Mise à jours des données des GameObjects
@@ -691,12 +793,39 @@ class Game {
             laser.draw();
         })
 
-        // AJOUT: Afficher un message si la partie n'a pas commencé
+        // Afficher un message si la partie n'a pas commencé
         if (!this.state.gameStarted) {
             this.ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
             this.ctx.font = "bold 24px Arial";
             this.ctx.textAlign = "center";
             this.ctx.fillText("APPUIE SUR ESPACE POUR COMMENCER", this.config.canvasSize.width / 2, this.config.canvasSize.height / 2);
+        }
+
+        // Afficher indicateur de bonus actifs
+        this.renderActiveEffects();
+    }
+
+    // NOUVEAU: Afficher les effets actifs
+    renderActiveEffects() {
+        let yOffset = 50;
+        this.ctx.font = "14px Arial";
+        this.ctx.textAlign = "left";
+
+        if (this.state.piercingBall) {
+            this.ctx.fillStyle = this.config.colors.warning;
+            this.ctx.fillText("🔥 BALLE PERÇANTE", 30, yOffset);
+            yOffset += 20;
+        }
+
+        if (this.state.stickyBall) {
+            this.ctx.fillStyle = this.config.colors.player2;
+            this.ctx.fillText("🧲 BALLE COLLANTE", 30, yOffset);
+            yOffset += 20;
+        }
+
+        if (this.state.paddle.size.width > this.config.paddleSize.width) {
+            this.ctx.fillStyle = this.config.colors.success;
+            this.ctx.fillText("📏 GRAND PADDLE", 30, yOffset);
         }
     }
 
@@ -718,7 +847,10 @@ class Game {
         this.renderObjects();
 
         // Vérification de victoire (toutes les briques détruites)
-        if (this.state.bricks.length === 0) {
+        const destructibleBricks = this.state.bricks.filter(b => b.type !== -1);
+        if (destructibleBricks.length === 0) {
+            // Bonus de niveau
+            this.state.score += this.config.scoring.levelBonus;
             this.showWinModal();
             return;
         }
@@ -738,13 +870,11 @@ class Game {
                     this.state.currentPlayer = nextPlayer;
                 }
 
-
                 if (this.state.players[1].life <= 0 && this.state.players[2].life <= 0) {
                     this.showResultModal();
                     return;
                 }
             } else {
-
                 if (p.life <= 0) {
                     this.showDeathModal();
                     return;
@@ -771,29 +901,41 @@ class Game {
 
         const content = document.createElement('div');
         Object.assign(content.style, {
-            textAlign: 'center', padding: '40px', border: '3px solid #00ffcc',
+            textAlign: 'center', padding: '40px', border: `3px solid ${this.config.colors.success}`,
             borderRadius: '15px', backgroundColor: '#111', color: 'white'
         });
 
         const isLastLevel = this.state.levels >= this.levels.data.length - 1;
 
         if (isLastLevel) {
+            // Bonus de fin de jeu
+            const finalScore = this.state.score + (this.state.players[this.state.currentPlayer].life * this.config.scoring.lifeBonus);
+
             content.innerHTML = `
-            <h1 style="color: #ffcc00; margin: 0; font-size: 40px;">FÉLICITATIONS !</h1>
+            <h1 style="color: ${this.config.colors.warning}; margin: 0; font-size: 40px;">FÉLICITATIONS !</h1>
             <p style="margin: 20px 0;">Tu as terminé tous les niveaux du jeu !</p>
+            <p style="margin: 20px 0; font-size: 24px;">Score final : ${finalScore}</p>
+            <p style="margin: 10px 0; font-size: 14px; color: #888;">
+                (Bonus vies restantes : ${this.state.players[this.state.currentPlayer].life} x ${this.config.scoring.lifeBonus} = ${this.state.players[this.state.currentPlayer].life * this.config.scoring.lifeBonus})
+            </p>
         `;
 
             const btnRestart = document.createElement('button');
             btnRestart.innerText = "RECOMMENCER AU DÉBUT";
             Object.assign(btnRestart.style, {
                 padding: '15px 30px', fontSize: '16px', cursor: 'pointer',
-                backgroundColor: '#ffcc00', color: '#111', border: 'none', borderRadius: '5px'
+                backgroundColor: this.config.colors.warning, color: '#111', border: 'none', borderRadius: '5px',
+                transition: 'transform 0.2s'
             });
+            btnRestart.onmouseover = () => btnRestart.style.transform = 'scale(1.1)';
+            btnRestart.onmouseout = () => btnRestart.style.transform = 'scale(1)';
             btnRestart.onclick = () => location.reload();
             content.appendChild(btnRestart);
         } else {
             content.innerHTML = `
-            <h1 style="color: #00ffcc; margin: 0; font-size: 40px;">NIVEAU COMPLÉTÉ !</h1>
+            <h1 style="color: ${this.config.colors.success}; margin: 0; font-size: 40px;">NIVEAU COMPLÉTÉ !</h1>
+            <p style="margin: 20px 0;">Score actuel : ${this.state.score}</p>
+            <p style="margin: 10px 0;">Bonus niveau : +${this.config.scoring.levelBonus}</p>
             <p style="margin: 20px 0;">Prêt pour la suite ?</p>
         `;
 
@@ -801,11 +943,15 @@ class Game {
             btnNext.innerText = "NIVEAU SUIVANT";
             Object.assign(btnNext.style, {
                 padding: '15px 30px', fontSize: '16px', cursor: 'pointer',
-                backgroundColor: '#00ffcc', color: '#111', border: 'none', borderRadius: '5px'
+                backgroundColor: this.config.colors.success, color: '#111', border: 'none', borderRadius: '5px',
+                transition: 'transform 0.2s'
             });
+            btnNext.onmouseover = () => btnNext.style.transform = 'scale(1.1)';
+            btnNext.onmouseout = () => btnNext.style.transform = 'scale(1)';
             btnNext.onclick = () => {
                 document.body.removeChild(overlay);
                 this.state.levels++;
+                this.state.players[this.state.currentPlayer].score = this.state.score;
                 this.initGameObject(true);
                 requestAnimationFrame(this.loop.bind(this));
             };
@@ -834,18 +980,21 @@ class Game {
         Object.assign(content.style, {
             textAlign: 'center',
             padding: '50px',
-            border: '3px solid #ff0044',
+            border: `3px solid ${this.config.colors.danger}`,
             borderRadius: '20px',
             backgroundColor: '#111',
-            boxShadow: '0 0 30px #ff0044'
+            boxShadow: `0 0 30px ${this.config.colors.danger}`
         });
 
         content.innerHTML = `
-            <h1 style="color: #ff0044; font-size: 50px; margin: 0 0 10px 0; text-transform: uppercase;">
+            <h1 style="color: ${this.config.colors.danger}; font-size: 50px; margin: 0 0 10px 0; text-transform: uppercase;">
                 Kabooooooom !!!
             </h1>
-            <p style="color: white; font-size: 18px; margin-bottom: 30px;">
+            <p style="color: white; font-size: 18px; margin-bottom: 10px;">
                 Toutes les balles ont été pulvérisées.
+            </p>
+            <p style="color: ${this.config.colors.warning}; font-size: 24px; margin-bottom: 30px;">
+                Score final : ${this.state.score}
             </p>
         `;
 
@@ -856,7 +1005,7 @@ class Game {
             fontSize: '16px',
             fontWeight: 'bold',
             cursor: 'pointer',
-            backgroundColor: '#ff0044',
+            backgroundColor: this.config.colors.danger,
             color: 'white',
             border: 'none',
             borderRadius: '5px',
@@ -894,13 +1043,13 @@ class Game {
 
         if (p1.score > p2.score) {
             winnerText = "JOUEUR 1 GAGNE !";
-            winnerColor = "#ff007f";
+            winnerColor = this.config.colors.player1;
         } else if (p2.score > p1.score) {
             winnerText = "JOUEUR 2 GAGNE !";
-            winnerColor = "#00ffff";
+            winnerColor = this.config.colors.player2;
         } else {
             winnerText = "ÉGALITÉ !";
-            winnerColor = "#ffcc00";
+            winnerColor = this.config.colors.warning;
         }
 
         const overlay = document.createElement('div');
@@ -934,10 +1083,10 @@ class Game {
                 ${winnerText}
             </h1>
             <div style="margin-bottom: 30px;">
-                <p style="color: #ff007f; font-size: 24px; margin: 10px 0;">
+                <p style="color: ${this.config.colors.player1}; font-size: 24px; margin: 10px 0;">
                     JOUEUR 1 : ${p1.score} points
                 </p>
-                <p style="color: #00ffff; font-size: 24px; margin: 10px 0;">
+                <p style="color: ${this.config.colors.player2}; font-size: 24px; margin: 10px 0;">
                     JOUEUR 2 : ${p2.score} points
                 </p>
             </div>
@@ -951,7 +1100,7 @@ class Game {
             fontWeight: 'bold',
             cursor: 'pointer',
             backgroundColor: winnerColor,
-            color: winnerColor === '#00ffff' ? '#0d0211' : 'white',
+            color: winnerColor === this.config.colors.player2 ? '#0d0211' : 'white',
             border: 'none',
             borderRadius: '5px',
             transition: '0.3s',

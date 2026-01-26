@@ -1,22 +1,90 @@
 {
-  "canvasSize" : {
+  "canvasSize": {
     "width": 840,
     "height": 620
   },
   "ball": {
-    "radius" : 10,
-    "orientation" : 47,
+    "radius": 10,
+    "orientation": 47,
     "speed": 6,
-    "position" : {
+    "position": {
       "x": 420,
       "y": 500
     },
-    "angleAlteration": 35
-
+    "angleAlteration": 35,
+    "maxSpeed": 12,
+    "minSpeed": 3,
+    "speedIncrement": 0.5
   },
   "paddleSize": {
-    "width" : 100,
-    "height" : 20
+    "width": 100,
+    "height": 20
+  },
+  "paddle": {
+    "speed": 7,
+    "bigPaddleWidth": 200,
+    "smallPaddleWidth": 60,
+    "bigPaddleDuration": 10000,
+    "color": "#ff007f"
+  },
+  "powerUps": {
+    "dropChance": 0.3,
+    "fallSpeed": 2,
+    "piercingDuration": 10000,
+    "laserChargesPerPickup": 3
+  },
+  "laser": {
+    "speed": 7,
+    "width": 10,
+    "height": 30,
+    "count": 1,
+    "spreadDistance": 25
+  },
+  "bricks": {
+    "width": 50,
+    "height": 25,
+    "startX": 20,
+    "startY": 20,
+    "columns": 16
+  },
+  "edges": {
+    "thickness": 20
+  },
+  "lives": {
+    "default": 3,
+    "max": 5
+  },
+  "scoring": {
+    "brickDestroyed": 1,
+    "levelBonus": 100,
+    "lifeBonus": 500
+  },
+  "difficulty": {
+    "easy": {
+      "ballSpeed": 4,
+      "lives": 5,
+      "powerUpChance": 0.4
+    },
+    "normal": {
+      "ballSpeed": 6,
+      "lives": 3,
+      "powerUpChance": 0.3
+    },
+    "hard": {
+      "ballSpeed": 8,
+      "lives": 2,
+      "powerUpChance": 0.2
+    }
+  },
+  "colors": {
+    "player1": "#ff007f",
+    "player2": "#00ffff",
+    "warning": "#ffcc00",
+    "success": "#00ffcc",
+    "danger": "#ff0044"
+  },
+  "audio": {
+    "enabled": true,
+    "volume": 0.7
   }
-
 }
